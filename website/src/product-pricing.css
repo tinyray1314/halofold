@@ -1,0 +1,322 @@
+.product-pricing-section {
+  border-top: 1px solid var(--line);
+}
+
+.product-pricing-heading {
+  max-width: 780px;
+  margin: 0 auto 58px;
+  text-align: center;
+}
+
+.product-pricing-heading h2 {
+  margin-bottom: 18px;
+}
+
+.product-pricing-heading p {
+  max-width: 680px;
+  margin: 0 auto;
+  color: var(--muted);
+  font-size: 17px;
+  line-height: 1.72;
+}
+
+.product-pricing-grid {
+  display: grid;
+  grid-template-columns: minmax(330px, .78fr) minmax(560px, 1.22fr);
+  gap: 18px;
+}
+
+.beta-price-card,
+.community-card {
+  min-height: 510px;
+  border: 1px solid var(--line);
+  border-radius: 30px;
+  overflow: hidden;
+}
+
+.beta-price-card {
+  padding: 34px;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  box-shadow: 0 18px 54px rgba(26, 27, 24, .045);
+}
+
+.beta-price-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.beta-price-topline > svg {
+  color: #a1a19c;
+}
+
+.beta-badge {
+  min-height: 34px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 999px;
+  color: #167a50;
+  background: #eafaf2;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.beta-badge > svg {
+  color: var(--green);
+}
+
+.beta-price-value {
+  margin: 46px 0 36px;
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+}
+
+.beta-price-value strong {
+  font-size: clamp(64px, 6vw, 88px);
+  line-height: .9;
+  letter-spacing: -.075em;
+  font-weight: 650;
+}
+
+.beta-price-value span {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.beta-feature-list {
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 15px;
+  list-style: none;
+}
+
+.beta-feature-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #4f4f4b;
+  font-size: 14px;
+}
+
+.beta-feature-list svg {
+  flex: 0 0 auto;
+  color: var(--green);
+}
+
+.beta-download-button {
+  min-height: 52px;
+  margin-top: auto;
+  padding: 0 17px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--ink);
+  border-radius: 14px;
+  color: white;
+  background: var(--ink);
+  font-size: 14px;
+  font-weight: 650;
+  transition: transform .2s ease, background .2s ease;
+}
+
+.beta-download-button:hover {
+  transform: translateY(-2px);
+  background: #30302e;
+}
+
+.beta-download-button:active {
+  transform: translateY(0) scale(.99);
+}
+
+.community-card {
+  position: relative;
+  isolation: isolate;
+  padding: 38px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(225px, 270px);
+  align-items: center;
+  gap: 34px;
+  color: white;
+  background: #0d131c;
+  border-color: #202a37;
+}
+
+.community-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #8fb7ff;
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: .04em;
+}
+
+.community-copy h3 {
+  max-width: 360px;
+  margin: 20px 0 16px;
+  font-size: clamp(31px, 3vw, 43px);
+  line-height: 1.08;
+  letter-spacing: -.045em;
+  font-weight: 650;
+}
+
+.community-copy > p {
+  max-width: 380px;
+  margin: 0;
+  color: #aab3c0;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.community-note {
+  margin-top: 34px;
+  padding-top: 22px;
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  border-top: 1px solid rgba(156, 175, 202, .18);
+}
+
+.community-note > svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  color: #6ca4ff;
+}
+
+.community-note > div {
+  display: grid;
+  gap: 5px;
+}
+
+.community-note strong {
+  font-size: 14px;
+}
+
+.community-note span {
+  color: #8d98a7;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.community-qr {
+  margin: 0;
+}
+
+.community-qr-frame {
+  padding: 12px;
+  border-radius: 24px;
+  background: white;
+  box-shadow: 0 20px 48px rgba(0, 0, 0, .32), 0 0 0 1px rgba(255, 255, 255, .08);
+}
+
+.community-qr img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 14px;
+  object-fit: contain;
+}
+
+.community-qr figcaption {
+  display: none;
+}
+
+@media (max-width: 1050px) {
+  .product-pricing-grid {
+    grid-template-columns: minmax(300px, .72fr) minmax(470px, 1.28fr);
+  }
+
+  .community-card {
+    padding: 32px;
+    grid-template-columns: minmax(0, 1fr) minmax(190px, 220px);
+    gap: 26px;
+  }
+}
+
+@media (max-width: 820px) {
+  .product-pricing-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .beta-price-card,
+  .community-card {
+    min-height: 0;
+  }
+
+  .beta-price-card {
+    min-height: 470px;
+  }
+
+  .community-card {
+    grid-template-columns: minmax(0, 1fr) minmax(190px, 230px);
+  }
+}
+
+@media (max-width: 560px) {
+  .product-pricing-heading {
+    margin-bottom: 40px;
+  }
+
+  .product-pricing-heading p {
+    font-size: 16px;
+  }
+
+  .beta-price-card,
+  .community-card {
+    border-radius: 24px;
+  }
+
+  .beta-price-card {
+    min-height: 440px;
+    padding: 26px 22px;
+  }
+
+  .beta-price-value {
+    margin: 40px 0 32px;
+  }
+
+  .beta-price-value strong {
+    font-size: 68px;
+  }
+
+  .community-card {
+    padding: 28px 22px;
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
+
+  .community-copy h3 {
+    font-size: 33px;
+  }
+
+  .community-note {
+    display: none;
+  }
+
+  .community-qr {
+    width: min(100%, 280px);
+    margin: 0 auto;
+  }
+
+  .community-qr figcaption {
+    margin-top: 14px;
+    display: block;
+    color: #aab3c0;
+    font-size: 12px;
+    line-height: 1.5;
+    text-align: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .beta-download-button {
+    transition: none;
+  }
+}
