@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "https://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDevelopmentRegion</key>
+	<string>zh-Hans</string>
+    <key>CFBundleDisplayName</key>
+    <string>Halofold</string>
+    <key>CFBundleExecutable</key>
+    <string>Halofold</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.tinyray.halofold</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleName</key>
+    <string>Halofold</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+	<string>1.0.7</string>
+    <key>CFBundleVersion</key>
+	<string>8</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>14.0</string>
+    <key>LSApplicationCategoryType</key>
+    <string>public.app-category.developer-tools</string>
+    <key>LSUIElement</key>
+    <true/>
+    <key>ITSAppUsesNonExemptEncryption</key>
+    <false/>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Halofold 使用麦克风录制你主动创建的本机提醒音频。</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Halofold 使用 macOS 本机语音识别，将你主动录制的提醒转成可编辑文案。</string>
+	<key>NSPrefersDisplaySafeAreaCompatibilityMode</key>
+    <false/>
+    <key>NSPrincipalClass</key>
+    <string>NSApplication</string>
+</dict>
+</plist>

@@ -1,0 +1,38 @@
+{
+  "sourceLanguage" : "zh-Hans",
+  "strings" : {
+    "NSMicrophoneUsageDescription" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Halofold uses the microphone to record reminder audio only when you choose to create it."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Halofold 使用麦克风录制你主动创建的本机提醒音频。"
+          }
+        }
+      }
+    },
+    "NSSpeechRecognitionUsageDescription" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Halofold uses on-device speech recognition to turn reminder recordings you create into editable text."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Halofold 使用 macOS 本机语音识别，将你主动录制的提醒转成可编辑文案。"
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

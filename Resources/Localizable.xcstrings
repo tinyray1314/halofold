@@ -1,0 +1,2008 @@
+{
+  "sourceLanguage": "zh-Hans",
+  "strings": {
+    "仅在你主动选择并授权后，应用才会以只读方式访问 .codex 文件夹，用于显示任务状态、对话标题、本机 Token 统计和官方用量快照。当你主动使用“发现待办”时，应用还会在本机分析最近对话正文。对话内容不会上传，应用也不会读取、复制或保存 Codex 登录凭据。": {
+      "localizations": { "en": { "stringUnit": { "state": "translated", "value": "The app accesses your .codex folder in read-only mode only after you select and authorize it. This access is used to show task status, conversation titles, local token totals, and official usage snapshots. When you use Find Tasks, the app also analyzes recent conversation text locally on your Mac. Conversation content is never uploaded, and the app never reads, copies, or stores Codex sign-in credentials." } } }
+    },
+    "最后更新：2026 年 8 月 21 日": {
+      "localizations": { "en": { "stringUnit": { "state": "translated", "value": "Last updated: August 21, 2026" } } }
+    },
+    "请选择个人目录中的 .codex 文件夹。应用以只读方式处理任务状态、用量和对话正文；对话仅在本机用于发现待办，不会上传或读取登录凭据。": {
+      "localizations": { "en": { "stringUnit": { "state": "translated", "value": "Choose the .codex folder in your home directory. The app processes task status, usage, and conversation text with read-only access. Conversation text is used only on this Mac to find tasks; it is never uploaded, and sign-in credentials are never read." } } }
+    },
+    "Codex 待办": {
+      "localizations": { "en": { "stringUnit": { "state": "translated", "value": "Codex Tasks" } } }
+    },
+    "从 Codex 发现待办": {
+      "localizations": { "en": { "stringUnit": { "state": "translated", "value": "Find Tasks from Codex" } } }
+    },
+    "从最近 Codex 对话中提取待办候选": {
+      "localizations": { "en": { "stringUnit": { "state": "translated", "value": "Find task candidates in recent Codex conversations" } } }
+    },
+    "发现待办": {
+      "localizations": { "en": { "stringUnit": { "state": "translated", "value": "Find Tasks" } } }
+    },
+    "加入 Codex 待办": {
+      "localizations": { "en": { "stringUnit": { "state": "translated", "value": "Add to Codex Tasks" } } }
+    },
+    "可能待办": {
+      "localizations": { "en": { "stringUnit": { "state": "translated", "value": "Possible task" } } }
+    },
+    "已选择 %lld 项": {
+      "localizations": { "en": { "stringUnit": { "state": "translated", "value": "%lld selected" } } }
+    },
+    "明确待办": {
+      "localizations": { "en": { "stringUnit": { "state": "translated", "value": "Explicit task" } } }
+    },
+    "最近对话中没有发现新的待办候选": {
+      "localizations": { "en": { "stringUnit": { "state": "translated", "value": "No new task candidates were found in recent conversations" } } }
+    },
+    "仅扫描最近 7 天的普通对话。请确认后再加入便签。": {
+      "localizations": { "en": { "stringUnit": { "state": "translated", "value": "Scans only standard conversations from the past 7 days. Confirm before adding to Notes." } } }
+    },
+    "请先在设置中授权只读访问 .codex 文件夹": {
+      "localizations": { "en": { "stringUnit": { "state": "translated", "value": "Grant read-only access to the .codex folder in Settings first" } } }
+    },
+    "便签": {
+      "localizations": { "en": { "stringUnit": { "state": "translated", "value": "Notes" } } }
+    },
+    "活动": {
+      "localizations": { "en": { "stringUnit": { "state": "translated", "value": "Activity" } } }
+    },
+    "打开活动，共 %lld 项": {
+      "localizations": { "en": { "stringUnit": { "state": "translated", "value": "Open Activity, %lld items" } } }
+    },
+    "删除当前便签": {
+      "localizations": { "en": { "stringUnit": { "state": "translated", "value": "Delete current note" } } }
+    },
+    "便签菜单": {
+      "localizations": { "en": { "stringUnit": { "state": "translated", "value": "Notes menu" } } }
+    },
+    "新建": {
+      "localizations": { "en": { "stringUnit": { "state": "translated", "value": "New" } } }
+    },
+    "便签标题": {
+      "localizations": { "en": { "stringUnit": { "state": "translated", "value": "Note title" } } }
+    },
+    "标题": {
+      "localizations": { "en": { "stringUnit": { "state": "translated", "value": "Heading" } } }
+    },
+    "加粗": {
+      "localizations": { "en": { "stringUnit": { "state": "translated", "value": "Bold" } } }
+    },
+    "引用": {
+      "localizations": { "en": { "stringUnit": { "state": "translated", "value": "Quote" } } }
+    },
+    "无序列表": {
+      "localizations": { "en": { "stringUnit": { "state": "translated", "value": "Bulleted list" } } }
+    },
+    "有序列表": {
+      "localizations": { "en": { "stringUnit": { "state": "translated", "value": "Numbered list" } } }
+    },
+    "任务列表": {
+      "localizations": { "en": { "stringUnit": { "state": "translated", "value": "Task list" } } }
+    },
+    "快速召唤": {
+      "localizations": { "en": { "stringUnit": { "state": "translated", "value": "Quick capture" } } }
+    },
+    "已本地保存": {
+      "localizations": { "en": { "stringUnit": { "state": "translated", "value": "Saved locally" } } }
+    },
+    "保存中": {
+      "localizations": { "en": { "stringUnit": { "state": "translated", "value": "Saving" } } }
+    },
+    "保存失败": {
+      "localizations": { "en": { "stringUnit": { "state": "translated", "value": "Save failed" } } }
+    },
+    "新便签": {
+      "localizations": { "en": { "stringUnit": { "state": "translated", "value": "New note" } } }
+    },
+    "未命名便签": {
+      "localizations": { "en": { "stringUnit": { "state": "translated", "value": "Untitled note" } } }
+    },
+    "新建便签": {
+      "localizations": { "en": { "stringUnit": { "state": "translated", "value": "New note" } } }
+    },
+    "Codex 数据 · 只读": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex data · Read only"
+          }
+        }
+      }
+    },
+    "Codex 状态监听暂时不可用：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex status monitoring is temporarily unavailable: %@"
+          }
+        }
+      }
+    },
+    "Codex 用量接口响应超时": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Codex usage service timed out"
+          }
+        }
+      }
+    },
+    "Codex 用量接口返回了无法识别的数据": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Codex usage service returned unrecognized data"
+          }
+        }
+      }
+    },
+    "Codex 系统错误": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex system error"
+          }
+        }
+      }
+    },
+    "Launch Radar 自动监测": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Launch Radar monitoring"
+          }
+        }
+      }
+    },
+    "运行中 %lld   完成 %lld   中断 %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Running %1$lld   Done %2$lld   Interrupted %3$lld"
+          }
+        }
+      }
+    },
+    "%@已替换为新录音": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ was replaced with the new recording"
+          }
+        }
+      }
+    },
+    "%@重置": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resets %@"
+          }
+        }
+      }
+    },
+    "%@，%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@, %2$@"
+          }
+        }
+      }
+    },
+    "%lld 分钟": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld min"
+          }
+        }
+      }
+    },
+    "%lld 小时 %lld 分": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld hr %2$lld min"
+          }
+        }
+      }
+    },
+    "%lld 未查看": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld unread"
+          }
+        }
+      }
+    },
+    "中断 · %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Interrupted · %lld"
+          }
+        }
+      }
+    },
+    "完成记录 · %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Completed · %lld"
+          }
+        }
+      }
+    },
+    "委派 %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delegated %lld"
+          }
+        }
+      }
+    },
+    "更新于 %@ · %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Updated %@ · %@"
+          }
+        }
+      }
+    },
+    "读取 Codex 本地状态失败：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn’t read local Codex status: %@"
+          }
+        }
+      }
+    },
+    "无法读取对话“%@”的新事件": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn’t read new events for “%@”"
+          }
+        }
+      }
+    },
+    "任务状态正常；周用量更新失败：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Task status is available; weekly usage update failed: %@"
+          }
+        }
+      }
+    },
+    "自动启动失败：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn’t update launch at login: %@"
+          }
+        }
+      }
+    },
+    "正在播放%@预览": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Previewing %@ alert"
+          }
+        }
+      }
+    },
+    "预览%@提醒音": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preview %@ alert sound"
+          }
+        }
+      }
+    },
+    "正在录制%@提醒，完成后点击“停止并替换”": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recording the %@ alert. Click “Stop and Replace” when finished."
+          }
+        }
+      }
+    },
+    "仅在你主动选择并授权后，应用才会以只读方式访问 .codex 文件夹，用于显示任务状态、对话标题、本机 Token 统计和官方用量快照。应用不会读取、复制或保存 Codex 登录凭据。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The app accesses your .codex folder in read-only mode only after you select and authorize it. This access is used to show task status, conversation titles, local token totals, and official usage snapshots. The app never reads, copies, or stores Codex sign-in credentials."
+          }
+        }
+      }
+    },
+    "仅支持 m4a、mp3、wav、aiff 和 caf 音频": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Only m4a, mp3, wav, aiff, and caf audio files are supported"
+          }
+        }
+      }
+    },
+    "今日": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Today"
+          }
+        }
+      }
+    },
+    "任务中断": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Task interrupted"
+          }
+        }
+      }
+    },
+    "任务完成": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Task completed"
+          }
+        }
+      }
+    },
+    "任务已中断": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Task interrupted"
+          }
+        }
+      }
+    },
+    "任务状态": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Task status"
+          }
+        }
+      }
+    },
+    "使用情况": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usage"
+          }
+        }
+      }
+    },
+    "使用趣味音色朗读文案": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Read text with a fun voice"
+          }
+        }
+      }
+    },
+    "停止并转成文案": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stop and transcribe"
+          }
+        }
+      }
+    },
+    "停止并替换": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stop and Replace"
+          }
+        }
+      }
+    },
+    "停止录音并替换%@提醒音": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stop recording and replace the %@ alert sound"
+          }
+        }
+      }
+    },
+    "停止录音": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stop recording"
+          }
+        }
+      }
+    },
+    "全部已查看": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mark all read"
+          }
+        }
+      }
+    },
+    "关闭": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Close"
+          }
+        }
+      }
+    },
+    "关闭趣味音色朗读": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Close fun voice editor"
+          }
+        }
+      }
+    },
+    "卡通高音": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cartoon pitch"
+          }
+        }
+      }
+    },
+    "取消": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancel"
+          }
+        }
+      }
+    },
+    "同步远端依赖": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sync remote dependencies"
+          }
+        }
+      }
+    },
+    "周": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Week"
+          }
+        }
+      }
+    },
+    "均已查看": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All read"
+          }
+        }
+      }
+    },
+    "完成": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Done"
+          }
+        }
+      }
+    },
+    "完整文案": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Full labels"
+          }
+        }
+      }
+    },
+    "官方周用量": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Official weekly usage"
+          }
+        }
+      }
+    },
+    "官方用量 · 本机同步": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Official usage · Local sync"
+          }
+        }
+      }
+    },
+    "宽松": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Roomy"
+          }
+        }
+      }
+    },
+    "少占空间": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saves space"
+          }
+        }
+      }
+    },
+    "尚未授权访问 .codex 文件夹": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Access to the .codex folder hasn’t been granted"
+          }
+        }
+      }
+    },
+    "尚未选择音频": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No audio selected"
+          }
+        }
+      }
+    },
+    "展开 Halofold": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Expand Halofold"
+          }
+        }
+      }
+    },
+    "展开灵动岛": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Expand status island"
+          }
+        }
+      }
+    },
+    "已关闭": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Off"
+          }
+        }
+      }
+    },
+    "已关闭自动启动": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Launch at login turned off"
+          }
+        }
+      }
+    },
+    "已取消录音，原提醒音保持不变": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recording canceled. The existing alert is unchanged."
+          }
+        }
+      }
+    },
+    "已取消，文案未改变": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Canceled. The text is unchanged."
+          }
+        }
+      }
+    },
+    "已在本机转成文案，可继续修改": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transcribed on this Mac. You can continue editing."
+          }
+        }
+      }
+    },
+    "已开启": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On"
+          }
+        }
+      }
+    },
+    "已开启自动启动": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Launch at login turned on"
+          }
+        }
+      }
+    },
+    "已打开本机演示数据": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Local demo data opened"
+          }
+        }
+      }
+    },
+    "已有一项提醒正在录音": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Another alert is already being recorded"
+          }
+        }
+      }
+    },
+    "已获得 .codex 文件夹的只读授权": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Read-only access to the .codex folder granted"
+          }
+        }
+      }
+    },
+    "已退出演示模式": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Demo mode closed"
+          }
+        }
+      }
+    },
+    "已选择": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Selected"
+          }
+        }
+      }
+    },
+    "应用不收集个人数据，不使用分析或广告 SDK，不跟踪用户，也不会把 .codex 文件夹内容发送给开发者或任何第三方服务器。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The app doesn’t collect personal data, use analytics or advertising SDKs, track you, or send the contents of your .codex folder to the developer or any third-party server."
+          }
+        }
+      }
+    },
+    "应用设置、任务读取断点、安全作用域书签和你主动录制或导入的提醒音频，只保存在这台 Mac 的应用容器中。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App settings, task checkpoints, security-scoped bookmarks, and alert audio you record or import are stored only in the app container on this Mac."
+          }
+        }
+      }
+    },
+    "当前没有正在进行的录音": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "There is no recording in progress"
+          }
+        }
+      }
+    },
+    "录音文件没有成功生成，请重新录制": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The recording file wasn’t created. Please record it again."
+          }
+        }
+      }
+    },
+    "录音转文案": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Record and transcribe"
+          }
+        }
+      }
+    },
+    "快嘴助手": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quick assistant"
+          }
+        }
+      }
+    },
+    "慢动作": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Slow motion"
+          }
+        }
+      }
+    },
+    "憨厚伯伯": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Warm baritone"
+          }
+        }
+      }
+    },
+    "所有数据仅在本机处理，不读取或保存 Codex 登录凭据。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All data is processed on this Mac. Codex sign-in credentials are never read or stored."
+          }
+        }
+      }
+    },
+    "打开演示": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open demo"
+          }
+        }
+      }
+    },
+    "打开设置": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Settings"
+          }
+        }
+      }
+    },
+    "找不到 Codex app-server": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex app-server wasn’t found"
+          }
+        }
+      }
+    },
+    "找不到 Codex 本地数据库": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The local Codex database wasn’t found"
+          }
+        }
+      }
+    },
+    "拉长节奏，有点无厘头": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Drawn-out timing with a playful feel"
+          }
+        }
+      }
+    },
+    "拖动调整显示顺序": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Drag to change display order"
+          }
+        }
+      }
+    },
+    "授权只读访问": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grant Read-Only Access"
+          }
+        }
+      }
+    },
+    "提醒文案": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alert text"
+          }
+        }
+      }
+    },
+    "收起 Halofold": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Collapse Halofold"
+          }
+        }
+      }
+    },
+    "收起态": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Collapsed view"
+          }
+        }
+      }
+    },
+    "收起灵动岛": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Collapse status island"
+          }
+        }
+      }
+    },
+    "数据收集与传输": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Data collection and transfer"
+          }
+        }
+      }
+    },
+    "整理发布说明": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prepare release notes"
+          }
+        }
+      }
+    },
+    "文字仅在本地处理，音频不上传，保障隐私安全。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Text is processed locally and audio is never uploaded."
+          }
+        }
+      }
+    },
+    "文案朗读": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Text to speech"
+          }
+        }
+      }
+    },
+    "无 Codex 数据时预览": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preview without Codex data"
+          }
+        }
+      }
+    },
+    "无法保存该文件夹的长期只读授权": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn’t save persistent read-only access to this folder"
+          }
+        }
+      }
+    },
+    "无法开始录音，请检查麦克风是否可用": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn’t start recording. Check that the microphone is available."
+          }
+        }
+      }
+    },
+    "显示 / 隐藏灵动岛": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show / Hide status island"
+          }
+        }
+      }
+    },
+    "显示": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Display"
+          }
+        }
+      }
+    },
+    "暂无需要跟踪的新对话": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No new conversations to track"
+          }
+        }
+      }
+    },
+    "更低沉、稍慢": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lower and slightly slower"
+          }
+        }
+      }
+    },
+    "更快的工具型播报": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Faster, utility-style delivery"
+          }
+        }
+      }
+    },
+    "更换": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Replace"
+          }
+        }
+      }
+    },
+    "更高音调，轻松夸张": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Higher pitched, light, and exaggerated"
+          }
+        }
+      }
+    },
+    "最后更新：2026 年 8 月 13 日": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Last updated: August 13, 2026"
+          }
+        }
+      }
+    },
+    "有 {count} 个 Codex 任务已中断": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex tasks interrupted: {count}"
+          }
+        }
+      }
+    },
+    "有 {count} 个 Codex 任务已完成": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex tasks completed: {count}"
+          }
+        }
+      }
+    },
+    "有 {count} 个 Codex 任务已暂停": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex tasks paused: {count}"
+          }
+        }
+      }
+    },
+    "朗读文案": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Text to read"
+          }
+        }
+      }
+    },
+    "未命名 Codex 对话": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Untitled Codex conversation"
+          }
+        }
+      }
+    },
+    "未查看": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unread"
+          }
+        }
+      }
+    },
+    "未能识别这段录音，请靠近麦克风重试": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn’t transcribe this recording. Move closer to the microphone and try again."
+          }
+        }
+      }
+    },
+    "未选择": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not selected"
+          }
+        }
+      }
+    },
+    "本周剩余": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Weekly remaining"
+          }
+        }
+      }
+    },
+    "本地 AI 音色包：未安装": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Local AI voice pack: Not installed"
+          }
+        }
+      }
+    },
+    "本地存储": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Local storage"
+          }
+        }
+      }
+    },
+    "本地数据": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Local data"
+          }
+        }
+      }
+    },
+    "本机今日 Token": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Local tokens today"
+          }
+        }
+      }
+    },
+    "本机今日": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Today on this Mac"
+          }
+        }
+      }
+    },
+    "本机同步": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Local sync"
+          }
+        }
+      }
+    },
+    "主动刷新 + 本机同步": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Active refresh + local sync"
+          }
+        }
+      }
+    },
+    "本机数据访问": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Local data access"
+          }
+        }
+      }
+    },
+    "正在录音…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recording…"
+          }
+        }
+      }
+    },
+    "录音中": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recording"
+          }
+        }
+      }
+    },
+    "正在录音…说完后点击“停止并转成文案”": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recording… When finished, click “Stop and transcribe.”"
+          }
+        }
+      }
+    },
+    "正在监测 Codex 对话": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Monitoring Codex conversations"
+          }
+        }
+      }
+    },
+    "正在试听；{count} 在生成音频时按 1 朗读": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Previewing; {count} is spoken as 1 when audio is generated"
+          }
+        }
+      }
+    },
+    "正在连接 Codex 本地数据…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connecting to local Codex data…"
+          }
+        }
+      }
+    },
+    "没有识别到可用文字": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No usable text was recognized"
+          }
+        }
+      }
+    },
+    "活力播报": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lively"
+          }
+        }
+      }
+    },
+    "点击任务时，应用仅通过本机 codex:// 链接打开已安装的 Codex app。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When you click a task, the app only uses a local codex:// link to open the installed Codex app."
+          }
+        }
+      }
+    },
+    "生成并替换": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Generate and replace"
+          }
+        }
+      }
+    },
+    "登录 Mac 后自动启动": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Launch when you log in"
+          }
+        }
+      }
+    },
+    "直接录音": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Record audio"
+          }
+        }
+      }
+    },
+    "稍快、明亮，适合日常提醒": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bright and slightly faster for everyday alerts"
+          }
+        }
+      }
+    },
+    "第三方服务": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Third-party services"
+          }
+        }
+      }
+    },
+    "系统语音": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "System voice"
+          }
+        }
+      }
+    },
+    "系统音色与音量": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "System voice and volume"
+          }
+        }
+      }
+    },
+    "系统默认音色": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "System default voice"
+          }
+        }
+      }
+    },
+    "紧凑": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Compact"
+          }
+        }
+      }
+    },
+    "紧凑模式减少菜单栏占用，宽松模式保留完整文案。左右两侧都可点击展开。\n开关和排序会同时影响收起态轮播与展开面板。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Compact mode uses less menu bar space, while Roomy mode keeps full labels. Click either side to expand.\nVisibility and order apply to both the collapsed rotation and expanded panel."
+          }
+        }
+      }
+    },
+    "网络连接中断": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Network connection interrupted"
+          }
+        }
+      }
+    },
+    "自动化": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automation"
+          }
+        }
+      }
+    },
+    "自定义音频": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Custom audio"
+          }
+        }
+      }
+    },
+    "视觉验收演示数据": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Visual QA demo data"
+          }
+        }
+      }
+    },
+    "设置": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Settings"
+          }
+        }
+      }
+    },
+    "设置…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Settings…"
+          }
+        }
+      }
+    },
+    "试听": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preview"
+          }
+        }
+      }
+    },
+    "语音": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Voice"
+          }
+        }
+      }
+    },
+    "请先录制或选择一段提醒音频": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Record or select alert audio first"
+          }
+        }
+      }
+    },
+    "请先输入文案，或录音转成文案": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter alert text or record audio to transcribe first"
+          }
+        }
+      }
+    },
+    "请在“系统设置 → 隐私与安全性 → 语音识别”中允许 Halofold": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allow Halofold under System Settings → Privacy & Security → Speech Recognition"
+          }
+        }
+      }
+    },
+    "请在“系统设置 → 隐私与安全性 → 麦克风”中允许 Halofold 录音": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allow Halofold under System Settings → Privacy & Security → Microphone"
+          }
+        }
+      }
+    },
+    "请选择个人目录中的 .codex 文件夹。应用只读取任务状态和本机用量，不会读取或保存登录凭据。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select the .codex folder in your home directory. The app reads only task status and local usage, and never reads or stores sign-in credentials."
+          }
+        }
+      }
+    },
+    "请选择包含 state_5.sqlite 的 .codex 文件夹": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select the .codex folder that contains state_5.sqlite"
+          }
+        }
+      }
+    },
+    "趣味提醒音已生成并替换": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The fun alert voice was generated and applied"
+          }
+        }
+      }
+    },
+    "趣味语音生成失败，请换一个系统音色再试": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn’t generate the fun voice. Try another system voice."
+          }
+        }
+      }
+    },
+    "趣味音色朗读": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fun voice editor"
+          }
+        }
+      }
+    },
+    "运行": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Run"
+          }
+        }
+      }
+    },
+    "运行中": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Running"
+          }
+        }
+      }
+    },
+    "返回任务面板": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Back to task panel"
+          }
+        }
+      }
+    },
+    "这台 Mac 当前没有可用的本机语音识别，可先直接输入文案": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On-device speech recognition isn’t available for this language on this Mac. You can enter the text directly."
+          }
+        }
+      }
+    },
+    "退出 Halofold": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quit Halofold"
+          }
+        }
+      }
+    },
+    "退出 Halofold？": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quit Halofold?"
+          }
+        }
+      }
+    },
+    "退出": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quit"
+          }
+        }
+      }
+    },
+    "退出后将停止任务监测和提醒。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quitting stops task monitoring and notifications."
+          }
+        }
+      }
+    },
+    "退出演示": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exit demo"
+          }
+        }
+      }
+    },
+    "选择 .codex 文件夹": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select .codex Folder"
+          }
+        }
+      }
+    },
+    "选择 Codex 数据文件夹": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select Codex Data Folder"
+          }
+        }
+      }
+    },
+    "选择": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose"
+          }
+        }
+      }
+    },
+    "选择效果": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose an effect"
+          }
+        }
+      }
+    },
+    "通用": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "General"
+          }
+        }
+      }
+    },
+    "重新选择": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose Again"
+          }
+        }
+      }
+    },
+    "重置时间暂不可用": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reset time unavailable"
+          }
+        }
+      }
+    },
+    "隐私政策": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Privacy Policy"
+          }
+        }
+      }
+    },
+    "需要授权只读访问 .codex 文件夹": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Read-only access to the .codex folder is required"
+          }
+        }
+      }
+    },
+    "音色": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Voice"
+          }
+        }
+      }
+    },
+    "音频已导入本地目录": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Audio imported to local storage"
+          }
+        }
+      }
+    },
+    "音频文件": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Audio file"
+          }
+        }
+      }
+    },
+    "音频文件已损坏或无法播放": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The audio file is damaged or can’t be played"
+          }
+        }
+      }
+    },
+    "为「任务完成」生成新的提醒音": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Create a new Task Completed alert"
+          }
+        }
+      }
+    },
+    "为「任务中断」生成新的提醒音": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Create a new Task Interrupted alert"
+          }
+        }
+      }
+    },
+    "优化数据导入性能": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Improve data import performance"
+          }
+        }
+      }
+    },
+    "重构用户权限模块": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refactor the permissions module"
+          }
+        }
+      }
+    },
+    "修复移动端布局问题": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fix mobile layout issues"
+          }
+        }
+      }
+    },
+    "设计系统组件更新": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Update design system components"
+          }
+        }
+      }
+    },
+    "API 接口稳定性提升": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Improve API stability"
+          }
+        }
+      }
+    },
+    "报表导出功能增强": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Improve report exports"
+          }
+        }
+      }
+    },
+    "完善空状态交互": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Improve empty-state interactions"
+          }
+        }
+      }
+    },
+    "更新离线缓存策略": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Update offline caching strategy"
+          }
+        }
+      }
+    },
+    "tokens": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "tokens"
+          }
+        }
+      }
+    },
+    "中断": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Interrupted"
+          }
+        }
+      }
+    },
+    "查看": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "View"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

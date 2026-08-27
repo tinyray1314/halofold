@@ -1,0 +1,14 @@
+.DS_Store
+.build/
+DerivedData/
+build/
+*.xcuserstate
+.tools/
+
+# Generated builds and visual QA artifacts stay local.
+/dist/
+/qa-artifacts/
+/design-qa*.png
+
+# Personal runtime state is stored outside the repository.
+*.log
