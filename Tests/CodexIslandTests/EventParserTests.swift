@@ -400,6 +400,10 @@ final class ApplicationModelPresentationTests: XCTestCase {
 @MainActor
 final class FunVoiceGeneratorTests: XCTestCase {
     func testRenderCreatesPlayableAudio() async throws {
+        if ProcessInfo.processInfo.environment["CI"] == "true" {
+            throw XCTSkip("AVSpeechSynthesizer rendering requires interactive macOS audio services")
+        }
+
         let destination = FileManager.default.temporaryDirectory
             .appendingPathComponent("HalofoldFunVoice-\(UUID().uuidString).aiff")
         defer { try? FileManager.default.removeItem(at: destination) }
