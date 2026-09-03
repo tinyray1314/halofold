@@ -13,6 +13,7 @@ xcodebuild build \
   -scheme CodexIsland \
   -configuration Release \
   -derivedDataPath "$DERIVED_DATA_DIR" \
+  SWIFT_ACTIVE_COMPILATION_CONDITIONS="HALOFOLD_NO_CODEX_TODO" \
   CODE_SIGNING_ALLOWED=NO \
   CODE_SIGNING_REQUIRED=NO
 

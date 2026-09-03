@@ -30,6 +30,7 @@ enum CodexSourceUpdate: Sendable {
 final class LocalCodexEventSource: CodexEventSource {
     private let queue = DispatchQueue(label: "com.tinyray.halofold.events", qos: .utility)
     private let parser = CodexEventParser()
+    private let actionRequestDetector = CodexActionRequestDetector()
     private let database: CodexDatabase
     private var timer: DispatchSourceTimer?
     private var checkpoints: [String: FileCheckpoint] = [:]
@@ -193,7 +194,7 @@ final class LocalCodexEventSource: CodexEventSource {
         guard let size = fileSize(at: url) else { return }
 
         if checkpoints[metadata.rolloutPath] == nil {
-            let signals = signals(in: url, since: installedAt)
+            let signals = classifyLatestCompletion(in: signals(in: url, since: installedAt), rolloutURL: url)
             let checkpoint = FileCheckpoint(offset: size)
             checkpoints[metadata.rolloutPath] = checkpoint
             if !signals.isEmpty {
@@ -216,8 +217,9 @@ final class LocalCodexEventSource: CodexEventSource {
             let data = try handle.readToEnd() ?? Data()
             guard let newline = data.lastIndex(of: 0x0A) else { return }
             let complete = data.prefix(through: newline)
-            let signals = complete.split(separator: 0x0A, omittingEmptySubsequences: true)
+            let parsedSignals = complete.split(separator: 0x0A, omittingEmptySubsequences: true)
                 .flatMap { parser.parseAll(line: Data($0)) }
+            let signals = classifyLatestCompletion(in: parsedSignals, rolloutURL: url)
             checkpoint.offset += UInt64(complete.count)
             checkpoints[metadata.rolloutPath] = checkpoint
             if !signals.isEmpty {
@@ -234,7 +236,7 @@ final class LocalCodexEventSource: CodexEventSource {
             switch signal {
             case .taskStarted:
                 monitoredPaths.insert(path)
-            case .taskCompleted, .taskPaused:
+            case .taskNeedsAction, .taskCompleted, .taskPaused:
                 monitoredPaths.remove(path)
             case .tokenDelta, .localRateLimit:
                 break
@@ -247,7 +249,7 @@ final class LocalCodexEventSource: CodexEventSource {
         enumerateLinesBackwards(in: url) { line in
             for signal in parser.parseAll(line: line) {
                 switch signal {
-                case .taskStarted, .taskCompleted, .taskPaused:
+                case .taskStarted, .taskNeedsAction, .taskCompleted, .taskPaused:
                     result = signal
                     return false
                 case .tokenDelta, .localRateLimit:
@@ -291,6 +293,20 @@ final class LocalCodexEventSource: CodexEventSource {
             return true
         }
         return result.reversed()
+    }
+
+    private func classifyLatestCompletion(in signals: [CodexSignal], rolloutURL: URL) -> [CodexSignal] {
+        guard let index = signals.lastIndex(where: {
+            if case .taskCompleted = $0 { return true }
+            return false
+        }), let request = actionRequestDetector.detect(in: rolloutURL)
+        else { return signals }
+
+        var classified = signals
+        if case let .taskCompleted(date) = classified[index] {
+            classified[index] = .taskNeedsAction(prompt: request.prompt, at: date)
+        }
+        return classified
     }
 
     private func enumerateLinesBackwards(in url: URL, endingAt requestedEnd: UInt64? = nil, visit: (Data) -> Bool) {

@@ -6,7 +6,7 @@ import UniformTypeIdentifiers
 struct SettingsView: View {
     @ObservedObject var model: ApplicationModel
     @ObservedObject var settings: AppSettings
-    @State private var selection: SettingsSection = .display
+    @State private var selection: SettingsSection = .features
     @State private var feedback: String?
     @State private var isShowingPrivacyPolicy = false
 
@@ -122,7 +122,9 @@ struct SettingsView: View {
 
     @ViewBuilder
     private var selectedPage: some View {
-        if selection == .display {
+        if selection == .features {
+            FeatureIslandSettings(settings: settings)
+        } else if selection == .display {
             DisplayIslandSettings(settings: settings)
         } else if selection == .voice {
             VoiceIslandSettings(model: model, settings: settings, feedback: $feedback)
@@ -141,6 +143,7 @@ struct SettingsView: View {
 }
 
 private enum SettingsSection: String, CaseIterable, Identifiable {
+    case features
     case display
     case voice
     case general
@@ -148,6 +151,7 @@ private enum SettingsSection: String, CaseIterable, Identifiable {
     var id: String { rawValue }
     var title: String {
         switch self {
+        case .features: return AppLocalization.text("功能")
         case .display: return AppLocalization.text("显示")
         case .voice: return AppLocalization.text("语音")
         case .general: return AppLocalization.text("通用")
@@ -155,10 +159,82 @@ private enum SettingsSection: String, CaseIterable, Identifiable {
     }
     var icon: String {
         switch self {
+        case .features: return "square.grid.2x2"
         case .display: return "rectangle.3.group"
         case .voice: return "waveform"
         case .general: return "gearshape"
         }
+    }
+}
+
+private struct FeatureIslandSettings: View {
+    @ObservedObject var settings: AppSettings
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            VStack(spacing: 0) {
+                ForEach(FeatureModule.allCases) { feature in
+                    featureRow(feature)
+                    if feature != FeatureModule.allCases.last {
+                        Divider().overlay(Color.white.opacity(0.1)).padding(.horizontal, 18)
+                    }
+                }
+            }
+            .background(
+                RoundedRectangle(cornerRadius: 15, style: .continuous)
+                    .fill(Color.black.opacity(0.16))
+                    .overlay(RoundedRectangle(cornerRadius: 15, style: .continuous).stroke(Color.white.opacity(0.12), lineWidth: 1))
+            )
+
+            Text("关闭功能不会删除本地内容。至少保留一个功能启用。")
+                .font(.system(size: 12.5))
+                .foregroundStyle(.white.opacity(0.48))
+                .lineSpacing(4)
+                .padding(.top, 12)
+                .padding(.horizontal, 2)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 22)
+    }
+
+    private func featureRow(_ feature: FeatureModule) -> some View {
+        let isEnabled = settings.isEnabled(feature)
+        let canDisable = settings.canDisable(feature)
+        return HStack(spacing: 12) {
+            Image(systemName: feature.symbolName)
+                .font(.system(size: 18, weight: .medium))
+                .foregroundStyle(feature == .schedule ? Color.islandBlue : .white.opacity(0.86))
+                .frame(width: 24, height: 24)
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 7) {
+                    Text(feature.title)
+                        .font(.system(size: 15, weight: .semibold))
+                    if feature == .schedule {
+                        Text("新功能")
+                            .font(.system(size: 10.5, weight: .semibold))
+                            .foregroundStyle(Color.islandBlue)
+                            .padding(.horizontal, 6)
+                            .frame(height: 20)
+                            .background(Color.islandBlue.opacity(0.12), in: Capsule())
+                            .overlay(Capsule().stroke(Color.islandBlue.opacity(0.48), lineWidth: 1))
+                    }
+                }
+                Text(feature.subtitle)
+                    .font(.system(size: 12.5))
+                    .foregroundStyle(.white.opacity(0.5))
+            }
+            Spacer()
+            IslandSwitch(isOn: Binding(
+                get: { settings.isEnabled(feature) },
+                set: { settings.setEnabled(feature, enabled: $0) }
+            ))
+            .opacity(isEnabled && !canDisable ? 0.48 : 1)
+            .disabled(isEnabled && !canDisable)
+            .accessibilityLabel(feature.title)
+        }
+        .padding(.horizontal, 18)
+        .frame(height: 74)
+        .contentShape(Rectangle())
     }
 }
 
@@ -339,6 +415,7 @@ private struct VoiceIslandSettings: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 12) {
+                actionRequiredBlock
                 voiceBlock(kind: .completed, title: AppLocalization.text("任务完成"), tint: .islandGreen)
                 voiceBlock(kind: .paused, title: AppLocalization.text("任务中断"), tint: .islandAmber)
                 voiceAndVolume
@@ -364,6 +441,41 @@ private struct VoiceIslandSettings: View {
                 }
             )
         }
+    }
+
+    private var actionRequiredBlock: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Label(AppLocalization.text("待你处理"), systemImage: "hand.raised.fill")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(Color.islandBlue)
+                Spacer()
+                IslandSwitch(isOn: $settings.actionRequiredEnabled)
+            }
+            Text(AppLocalization.text("Codex 明确需要你登录、确认、授权或补充信息时，朗读一条本地提炼的短提示。"))
+                .font(.system(size: 11.5))
+                .foregroundStyle(.white.opacity(0.55))
+                .fixedSize(horizontal: false, vertical: true)
+            HStack {
+                Text(AppLocalization.text("示例：Codex 需要你确认信息"))
+                    .font(.system(size: 12.5, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.82))
+                Spacer()
+                Button {
+                    model.previewActionAlert()
+                } label: {
+                    Label(AppLocalization.text("预览"), systemImage: "play.fill")
+                        .font(.system(size: 11.5, weight: .semibold))
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(Color.islandBlue)
+            }
+            Label(AppLocalization.text("仅在本机识别，不会朗读密码或验证码"), systemImage: "lock.shield")
+                .font(.system(size: 10.5))
+                .foregroundStyle(.white.opacity(0.42))
+        }
+        .padding(12)
+        .background(Color.white.opacity(0.055), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 
     private func voiceBlock(kind: AlertKind, title: String, tint: Color) -> some View {
@@ -1184,7 +1296,11 @@ private struct PrivacyPolicyView: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 15) {
+#if HALOFOLD_NO_CODEX_TODO
+                    policySection(AppLocalization.text("本机数据访问"), AppLocalization.text("仅在你主动选择并授权后，应用才会以只读方式访问 .codex 文件夹，用于显示任务状态、对话标题、本机 Token 统计和官方用量快照。应用不会读取、复制或保存 Codex 登录凭据。"))
+#else
                     policySection(AppLocalization.text("本机数据访问"), AppLocalization.text("仅在你主动选择并授权后，应用才会以只读方式访问 .codex 文件夹，用于显示任务状态、对话标题、本机 Token 统计和官方用量快照。当你主动使用“发现待办”时，应用还会在本机分析最近对话正文。对话内容不会上传，应用也不会读取、复制或保存 Codex 登录凭据。"))
+#endif
                     policySection(AppLocalization.text("数据收集与传输"), AppLocalization.text("应用不收集个人数据，不使用分析或广告 SDK，不跟踪用户，也不会把 .codex 文件夹内容发送给开发者或任何第三方服务器。"))
                     policySection(AppLocalization.text("本地存储"), AppLocalization.text("应用设置、任务读取断点、安全作用域书签和你主动录制或导入的提醒音频，只保存在这台 Mac 的应用容器中。"))
                     policySection(AppLocalization.text("第三方服务"), AppLocalization.text("点击任务时，应用仅通过本机 codex:// 链接打开已安装的 Codex app。"))

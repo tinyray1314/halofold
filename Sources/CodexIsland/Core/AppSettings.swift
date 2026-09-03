@@ -7,8 +7,10 @@ final class AppSettings: ObservableObject {
     private enum Key {
         static let enabledModules = "enabledModules.v1"
         static let moduleOrder = "moduleOrder.v1"
+        static let enabledFeatures = "enabledFeatures.v1"
         static let collapsedLayoutMode = "collapsedLayoutMode.v1"
         static let completionEnabled = "completionEnabled"
+        static let actionRequiredEnabled = "actionRequiredEnabled.v1"
         static let pauseEnabled = "pauseEnabled"
         static let completionMode = "completionMode"
         static let pauseMode = "pauseMode"
@@ -29,8 +31,10 @@ final class AppSettings: ObservableObject {
 
     @Published var enabledModules: Set<DisplayModule> = Set(DisplayModule.allCases) { didSet { save() } }
     @Published var moduleOrder: [DisplayModule] = DisplayModule.allCases { didSet { save() } }
+    @Published private(set) var enabledFeatures: Set<FeatureModule> = Set(FeatureModule.allCases) { didSet { save() } }
     @Published var collapsedLayoutMode: CollapsedLayoutMode = .compact { didSet { save() } }
     @Published var completionEnabled = true { didSet { save() } }
+    @Published var actionRequiredEnabled = true { didSet { save() } }
     @Published var pauseEnabled = true { didSet { save() } }
     @Published var completionMode: VoiceMode = .system { didSet { save() } }
     @Published var pauseMode: VoiceMode = .system { didSet { save() } }
@@ -58,6 +62,7 @@ final class AppSettings: ObservableObject {
         if ProcessInfo.processInfo.arguments.contains("--demo") || ProcessInfo.processInfo.environment["CODEX_ISLAND_DEMO"] == "1" {
             enabledModules = Set(DisplayModule.allCases)
             moduleOrder = DisplayModule.allCases
+            enabledFeatures = Set(FeatureModule.allCases)
         }
         if ProcessInfo.processInfo.arguments.contains("--compact-demo") {
             collapsedLayoutMode = .compact
@@ -73,8 +78,8 @@ final class AppSettings: ObservableObject {
               let legacy = UserDefaults(suiteName: "com.tinyray.codexisland")
         else { return }
         let keys = [
-            Key.enabledModules, Key.moduleOrder, Key.collapsedLayoutMode,
-            Key.completionEnabled, Key.pauseEnabled, Key.completionMode,
+            Key.enabledModules, Key.moduleOrder, Key.enabledFeatures, Key.collapsedLayoutMode,
+            Key.completionEnabled, Key.actionRequiredEnabled, Key.pauseEnabled, Key.completionMode,
             Key.pauseMode, Key.completionText, Key.pauseText,
             Key.completionTextCustomized, Key.pauseTextCustomized,
             Key.voiceIdentifier, Key.voiceVolume, Key.completionAudio,
@@ -88,11 +93,25 @@ final class AppSettings: ObservableObject {
     }
 
     var hasEnabledModules: Bool { !enabledModules.isEmpty }
+    var hasEnabledFeatures: Bool { !enabledFeatures.isEmpty }
 
     func isEnabled(_ module: DisplayModule) -> Bool { enabledModules.contains(module) }
+    func isEnabled(_ feature: FeatureModule) -> Bool { enabledFeatures.contains(feature) }
+
+    func canDisable(_ feature: FeatureModule) -> Bool {
+        !enabledFeatures.contains(feature) || enabledFeatures.count > 1
+    }
 
     func setEnabled(_ module: DisplayModule, enabled: Bool) {
         if enabled { enabledModules.insert(module) } else { enabledModules.remove(module) }
+    }
+
+    func setEnabled(_ feature: FeatureModule, enabled: Bool) {
+        if enabled {
+            enabledFeatures.insert(feature)
+        } else if enabledFeatures.count > 1 {
+            enabledFeatures.remove(feature)
+        }
     }
 
     func moveModules(from offsets: IndexSet, to destination: Int) {
@@ -134,10 +153,24 @@ final class AppSettings: ObservableObject {
             let missing = DisplayModule.allCases.filter { !saved.contains($0) }
             moduleOrder = saved + missing
         }
+        if let raw = defaults.array(forKey: Key.enabledFeatures) as? [String] {
+            let decoded = Set(raw.compactMap(FeatureModule.init(rawValue:)))
+            enabledFeatures = decoded.isEmpty ? Set(FeatureModule.allCases) : decoded
+        } else {
+            // 旧用户已有便签与 Codex 跟进配置；新增日程默认不主动打扰。
+            let looksLikeExistingInstall = defaults.object(forKey: Key.enabledModules) != nil
+                || defaults.object(forKey: Key.completionEnabled) != nil
+            enabledFeatures = looksLikeExistingInstall
+                ? [.quickNotes, .codexFollowUp]
+                : Set(FeatureModule.allCases)
+        }
         collapsedLayoutMode = defaults.string(forKey: Key.collapsedLayoutMode)
             .flatMap(CollapsedLayoutMode.init(rawValue:)) ?? .compact
         if defaults.object(forKey: Key.completionEnabled) != nil {
             completionEnabled = defaults.bool(forKey: Key.completionEnabled)
+        }
+        if defaults.object(forKey: Key.actionRequiredEnabled) != nil {
+            actionRequiredEnabled = defaults.bool(forKey: Key.actionRequiredEnabled)
         }
         if defaults.object(forKey: Key.pauseEnabled) != nil {
             pauseEnabled = defaults.bool(forKey: Key.pauseEnabled)
@@ -173,8 +206,10 @@ final class AppSettings: ObservableObject {
         guard !isLoading else { return }
         defaults.set(enabledModules.map(\.rawValue), forKey: Key.enabledModules)
         defaults.set(moduleOrder.map(\.rawValue), forKey: Key.moduleOrder)
+        defaults.set(enabledFeatures.map(\.rawValue), forKey: Key.enabledFeatures)
         defaults.set(collapsedLayoutMode.rawValue, forKey: Key.collapsedLayoutMode)
         defaults.set(completionEnabled, forKey: Key.completionEnabled)
+        defaults.set(actionRequiredEnabled, forKey: Key.actionRequiredEnabled)
         defaults.set(pauseEnabled, forKey: Key.pauseEnabled)
         defaults.set(completionMode.rawValue, forKey: Key.completionMode)
         defaults.set(pauseMode.rawValue, forKey: Key.pauseMode)

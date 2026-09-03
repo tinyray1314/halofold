@@ -140,7 +140,17 @@ final class IslandWindowController: NSWindowController {
         updateVisibility()
     }
 
+    func showActivityWorkspace() {
+        userHidden = false
+        codexIsFrontmost = false
+        model.showActivityWorkspace()
+        updateVisibility()
+        expandedPanel.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
     func presentNewNote() {
+        guard model.settings.isEnabled(.quickNotes) else { return }
         userHidden = false
         codexIsFrontmost = false
         model.showNotesWorkspace(createNew: true)
@@ -354,10 +364,14 @@ final class IslandWindowController: NSWindowController {
     private func showExpandedPanel(on screen: NSScreen, animated: Bool) {
         let target = expandedFrame(on: screen)
         if !expandedPanel.isVisible {
-            let anchor = collapsedAnchorFrame(on: screen)
-            expandedPanel.alphaValue = animated ? 0 : 1
-            expandedPanel.setFrame(anchor, display: false)
+            // SwiftUI content has a real minimum height. Starting from a one-point
+            // anchor can be coerced back to full height above the screen on first use.
+            // Ordering the panel fully visible also avoids leaving a non-activating
+            // panel at alpha zero when macOS declines its first animation.
+            expandedPanel.alphaValue = 1
+            expandedPanel.setFrame(target, display: false)
             expandedPanel.orderFrontRegardless()
+            return
         }
 
         if animated {

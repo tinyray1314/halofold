@@ -27,17 +27,23 @@ final class ApplicationModel: ObservableObject {
 
     let settings: AppSettings
     let notes: NoteLibraryModel
+    let schedule: ScheduleLibraryModel
     private let persistence: PersistenceStore
     private let eventSource: CodexEventSource
     private let usageClient: CodexUsageClient
     private let audioNotifier: AudioNotifier
     private let audioDirectory: URL
     private let audioRecorder: LocalAudioRecorder
+    private let scheduleReminderEngine = ScheduleReminderEngine()
     private let funVoiceGenerator = FunVoiceGenerator()
     private let speechTranscriber = LocalSpeechTranscriber()
     private var snapshot: TrackerSnapshot
     private var usageTimer: Timer?
+    private var scheduleTimer: Timer?
     private var saveWorkItem: DispatchWorkItem?
+    private var featureSettingsCancellable: AnyCancellable?
+    private var hasStarted = false
+    private var isCodexMonitoring = false
     private(set) var isDemoMode = false
 
     init(
@@ -50,6 +56,7 @@ final class ApplicationModel: ObservableObject {
         let settings = suppliedSettings ?? AppSettings()
         self.settings = settings
         self.notes = NoteLibraryModel()
+        self.schedule = ScheduleLibraryModel()
         self.persistence = persistence
         self.eventSource = eventSource
         self.usageClient = usageClient
@@ -64,6 +71,10 @@ final class ApplicationModel: ObservableObject {
         } else if ProcessInfo.processInfo.arguments.contains("--activity-demo") {
             expandedWorkspace = .activity
         }
+        normalizeExpandedWorkspace()
+        featureSettingsCancellable = settings.$enabledFeatures.sink { [weak self] _ in
+            self?.handleFeatureSettingsChanged()
+        }
         refreshPublishedState()
     }
 
@@ -75,6 +86,7 @@ final class ApplicationModel: ObservableObject {
     }
 
     var runningCount: Int { visibleConversations.filter { $0.state == .running }.count }
+    var needsActionCount: Int { visibleConversations.filter { $0.state == .needsAction }.count }
     var completedCount: Int { visibleConversations.filter { $0.state == .completed && $0.isCompletionUnread }.count }
     var pausedCount: Int { visibleConversations.filter { $0.state == .paused }.count }
     var sourceHasWarning: Bool { sourceHealth != .normal }
@@ -82,11 +94,14 @@ final class ApplicationModel: ObservableObject {
     var launchAtLoginEnabled: Bool { SMAppService.mainApp.status == .enabled }
 
     func start() {
+        hasStarted = true
+        startScheduleMonitoring()
         if ProcessInfo.processInfo.arguments.contains("--demo") || ProcessInfo.processInfo.environment["CODEX_ISLAND_DEMO"] == "1" {
             loadDemoData()
             return
         }
 
+        guard settings.isEnabled(.codexFollowUp) else { return }
         guard hasCodexFolderAccess else {
             setSourceMessage("需要授权只读访问 .codex 文件夹", warning: true)
             isShowingSettings = true
@@ -97,6 +112,8 @@ final class ApplicationModel: ObservableObject {
     }
 
     private func startMonitoring() {
+        guard !isCodexMonitoring else { return }
+        isCodexMonitoring = true
         let isFirstLaunch = persistence.load() == nil
         resetDailyCounterIfNeeded()
         eventSource.start(snapshot: snapshot, isFirstLaunch: isFirstLaunch) { [weak self] update in
@@ -110,21 +127,148 @@ final class ApplicationModel: ObservableObject {
         }
     }
 
+    private func stopCodexMonitoring() {
+        eventSource.stop()
+        usageTimer?.invalidate()
+        usageTimer = nil
+        isCodexMonitoring = false
+    }
+
+    private func startScheduleMonitoring() {
+        guard scheduleTimer == nil else { return }
+        scheduleTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.checkScheduleReminders() }
+        }
+        if let scheduleTimer {
+            RunLoop.main.add(scheduleTimer, forMode: .common)
+        }
+        checkScheduleReminders()
+    }
+
+    private func checkScheduleReminders(now: Date = Date()) {
+        let frontmostBundleID = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
+        let isUserSessionAvailable = frontmostBundleID != "com.apple.loginwindow"
+            && frontmostBundleID != "com.apple.ScreenSaver.Engine"
+        let actions = scheduleReminderEngine.tick(
+            ScheduleReminderTick(
+                now: now,
+                isUserSessionAvailable: isUserSessionAvailable,
+                scheduleModuleEnabled: settings.isEnabled(.schedule),
+                occurrences: schedule.occurrences(on: now),
+                routines: schedule.snapshot.routines
+            )
+        )
+
+        for action in actions {
+            switch action {
+            case let .awaitingStartReminder(reminder):
+                schedule.markAwaitingStart(reminder.occurrenceID, now: now)
+                audioNotifier.speak(
+                    "现在 " + scheduleTimeText(reminder.plannedStart) + "，该开始" + reminder.title + "了",
+                    interrupt: true
+                )
+                showScheduleWorkspace()
+            case let .overdueDecision(reminder):
+                schedule.markOverdueDecision(reminder.occurrenceID, now: now)
+                showScheduleWorkspace()
+            case let .routineReminder(reminder):
+                schedule.markRoutineReminded(reminder.routineID, at: reminder.remindedAt)
+                audioNotifier.speak(routineReminderText(for: reminder.kind))
+            case let .combinedRoutineReminder(reminders):
+                for reminder in reminders {
+                    schedule.markRoutineReminded(reminder.routineID, at: reminder.remindedAt)
+                }
+                audioNotifier.speak(combinedRoutineReminderText(for: reminders.map(\.kind)))
+            }
+        }
+    }
+
+    private func scheduleTimeText(_ date: Date) -> String {
+        Self.scheduleTimeFormatter.string(from: date)
+    }
+
+    private func routineReminderText(for kind: ScheduleRoutineKind) -> String {
+        switch kind {
+        case .hydration: return "提醒你喝点水"
+        case .activity: return "提醒你起来活动一下"
+        }
+    }
+
+    private func combinedRoutineReminderText(for kinds: [ScheduleRoutineKind]) -> String {
+        let uniqueKinds = Set(kinds)
+        if uniqueKinds.contains(.hydration), uniqueKinds.contains(.activity) {
+            return "提醒你喝水，也起来活动一下"
+        }
+        return uniqueKinds.contains(.hydration) ? routineReminderText(for: .hydration) : routineReminderText(for: .activity)
+    }
+
+    private func handleFeatureSettingsChanged() {
+        if !settings.isEnabled(.schedule) {
+            for occurrence in schedule.snapshot.occurrences where occurrence.status == .running {
+                schedule.defer(occurrence.id)
+            }
+            scheduleReminderEngine.resetObservation(at: Date())
+        }
+        if hasStarted, !isDemoMode {
+            if settings.isEnabled(.codexFollowUp) {
+                if hasCodexFolderAccess { startMonitoring() }
+            } else {
+                stopCodexMonitoring()
+            }
+        }
+        normalizeExpandedWorkspace()
+        objectWillChange.send()
+    }
+
+    private func normalizeExpandedWorkspace() {
+        guard !isWorkspaceEnabled(expandedWorkspace) else { return }
+        expandedWorkspace = fallbackWorkspace
+    }
+
+    private func showFallbackWorkspace() {
+        isShowingSettings = false
+        expandedWorkspace = fallbackWorkspace
+        isExpanded = true
+    }
+
+    private var fallbackWorkspace: ExpandedWorkspace {
+        if settings.isEnabled(.schedule) { return .schedule }
+        if settings.isEnabled(.quickNotes) { return .notes }
+        return .activity
+    }
+
+    private func isWorkspaceEnabled(_ workspace: ExpandedWorkspace) -> Bool {
+        switch workspace {
+        case .notes: return settings.isEnabled(.quickNotes)
+        case .activity: return settings.isEnabled(.codexFollowUp)
+        case .schedule: return settings.isEnabled(.schedule)
+        }
+    }
+
+    private static let scheduleTimeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "zh_Hans_CN")
+        formatter.dateFormat = "HH:mm"
+        return formatter
+    }()
+
     @discardableResult
     func requestCodexFolderAccess() throws -> Bool {
         guard let _ = try CodexDataAccess.shared.requestAccess() else { return false }
         hasCodexFolderAccess = true
         setSourceMessage("正在连接 Codex 本地数据…")
-        eventSource.stop()
-        startMonitoring()
+        stopCodexMonitoring()
+        if settings.isEnabled(.codexFollowUp) { startMonitoring() }
         return true
     }
 
     func stop() {
         cancelAlertRecording()
-        eventSource.stop()
-        usageTimer?.invalidate()
-        usageTimer = nil
+        hasStarted = false
+        stopCodexMonitoring()
+        scheduleTimer?.invalidate()
+        scheduleTimer = nil
+        schedule.flush()
         notes.flush()
         saveNow()
     }
@@ -144,6 +288,10 @@ final class ApplicationModel: ObservableObject {
     }
 
     func showNotesWorkspace(createNew: Bool = false) {
+        guard settings.isEnabled(.quickNotes) else {
+            showFallbackWorkspace()
+            return
+        }
         isShowingSettings = false
         expandedWorkspace = .notes
         isExpanded = true
@@ -151,8 +299,22 @@ final class ApplicationModel: ObservableObject {
     }
 
     func showActivityWorkspace() {
+        guard settings.isEnabled(.codexFollowUp) else {
+            showFallbackWorkspace()
+            return
+        }
         isShowingSettings = false
         expandedWorkspace = .activity
+        isExpanded = true
+    }
+
+    func showScheduleWorkspace() {
+        guard settings.isEnabled(.schedule) else {
+            showFallbackWorkspace()
+            return
+        }
+        isShowingSettings = false
+        expandedWorkspace = .schedule
         isExpanded = true
     }
 
@@ -162,9 +324,7 @@ final class ApplicationModel: ObservableObject {
     }
 
     func enterDemoMode() {
-        eventSource.stop()
-        usageTimer?.invalidate()
-        usageTimer = nil
+        stopCodexMonitoring()
         loadDemoData()
         isShowingSettings = false
         isExpanded = true
@@ -176,7 +336,9 @@ final class ApplicationModel: ObservableObject {
         conversations = []
         usage = .empty
         refreshPublishedState()
-        if hasCodexFolderAccess {
+        if !settings.isEnabled(.codexFollowUp) {
+            return
+        } else if hasCodexFolderAccess {
             setSourceMessage("正在连接 Codex 本地数据…")
             startMonitoring()
         } else {
@@ -218,6 +380,10 @@ final class ApplicationModel: ObservableObject {
 
     func previewAlert(_ kind: AlertKind) throws {
         try audioNotifier.preview(kind)
+    }
+
+    func previewActionAlert() {
+        audioNotifier.previewAction()
     }
 
     func importAudio(for kind: AlertKind, from sourceURL: URL) throws -> URL {
@@ -345,6 +511,7 @@ final class ApplicationModel: ObservableObject {
         usageClient.readWeeklyUsage { [weak self] result in
             DispatchQueue.main.async {
                 guard let self else { return }
+                guard self.settings.isEnabled(.codexFollowUp) else { return }
                 switch result {
                 case let .success(value):
                     self.usage.weeklyRemainingPercent = value.remainingPercent
@@ -364,6 +531,7 @@ final class ApplicationModel: ObservableObject {
     }
 
     private func handle(_ update: CodexSourceUpdate) {
+        guard settings.isEnabled(.codexFollowUp) else { return }
         resetDailyCounterIfNeeded()
         switch update {
         case let .bootstrap(active, checkpoints, todayTokens, metadata):
@@ -401,7 +569,7 @@ final class ApplicationModel: ObservableObject {
     private func apply(signals: [CodexSignal], metadata: ThreadMetadata) {
         for signal in signals {
             switch signal {
-            case .taskStarted, .taskCompleted, .taskPaused:
+            case .taskStarted, .taskNeedsAction, .taskCompleted, .taskPaused:
                 if snapshot.records[metadata.id] == nil {
                     guard case .taskStarted = signal else { continue }
                     snapshot.records[metadata.id] = ConversationRecord(
@@ -424,6 +592,10 @@ final class ApplicationModel: ObservableObject {
                 let transition = ConversationReducer.apply(signal, to: &record)
                 snapshot.records[metadata.id] = record
                 if metadata.kind != .subagent {
+                    if transition == .needsAction {
+                        audioNotifier.enqueueAction(record.actionPrompt ?? AppLocalization.text("Codex 有一项任务需要你处理，请打开查看"))
+                        refreshOfficialUsage()
+                    }
                     if transition == .completed {
                         audioNotifier.enqueue(.completed)
                         refreshOfficialUsage()
@@ -503,6 +675,7 @@ final class ApplicationModel: ObservableObject {
                                updatedAt: now.addingTimeInterval(TimeInterval(-index * 1280)), turnStartedAt: now.addingTimeInterval(TimeInterval(-index * 1280)))
         }
         demo.append(ConversationRecord(id: UUID().uuidString, title: AppLocalization.text("整理发布说明"), rolloutPath: "", state: .completed, updatedAt: now.addingTimeInterval(-6300), isCompletionUnread: true))
+        demo.append(ConversationRecord(id: UUID().uuidString, title: AppLocalization.text("发布前账号确认"), rolloutPath: "", state: .needsAction, updatedAt: now.addingTimeInterval(-900), actionPrompt: AppLocalization.text("Codex 需要你登录账号")))
         demo.append(ConversationRecord(id: UUID().uuidString, title: AppLocalization.text("Launch Radar 自动监测"), rolloutPath: "", state: .completed, updatedAt: now.addingTimeInterval(-3100), kind: .automation, isCompletionUnread: true))
         demo.append(ConversationRecord(id: UUID().uuidString, title: AppLocalization.text("同步远端依赖"), rolloutPath: "", state: .paused, updatedAt: now.addingTimeInterval(-4200), pauseReason: AppLocalization.text("网络连接中断")))
         conversations = demo

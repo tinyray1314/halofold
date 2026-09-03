@@ -93,6 +93,19 @@ final class ConversationReducerTests: XCTestCase {
         XCTAssertFalse(record.isCompletionUnread)
     }
 
+    func testActionRequestHasIndependentStateAndPrompt() {
+        let now = Date()
+        var record = ConversationRecord(id: "id", title: "测试", rolloutPath: "/tmp/test", state: .running, updatedAt: now)
+        XCTAssertEqual(
+            ConversationReducer.apply(.taskNeedsAction(prompt: "Codex 需要你登录账号", at: now), to: &record),
+            .needsAction
+        )
+        XCTAssertEqual(record.actionPrompt, "Codex 需要你登录账号")
+        XCTAssertFalse(record.isCompletionUnread)
+        _ = ConversationReducer.apply(.taskStarted(turnID: "next", at: now.addingTimeInterval(1)), to: &record)
+        XCTAssertNil(record.actionPrompt)
+    }
+
     func testLegacyCompletionDecodesAsRead() throws {
         let json = """
         {"id":"old","title":"旧记录","rolloutPath":"/tmp/old","state":"completed","updatedAt":"2026-08-13T18:00:00Z","isArchived":false}
@@ -111,6 +124,55 @@ final class ConversationReducerTests: XCTestCase {
             parentThreadID: "parent", isCompletionUnread: true
         )
         XCTAssertFalse(child.isPrimaryStatusItem)
+    }
+}
+
+final class CodexActionRequestDetectorTests: XCTestCase {
+    private let detector = CodexActionRequestDetector()
+
+    func testDetectsExplicitLoginRequest() {
+        XCTAssertEqual(detect("构建已经完成。\n请先登录账号，我再继续验证。")?.prompt, "Codex 需要你登录账号")
+    }
+
+    func testIgnoresOptionalOffer() {
+        XCTAssertNil(detect("本次修改已经完成。如果需要，我可以继续帮你上传文件。"))
+    }
+
+    func testIgnoresNormalCompletion() {
+        XCTAssertNil(detect("修复已完成，测试全部通过。"))
+    }
+
+    func testSensitiveRequestUsesSafeSecurityPrompt() {
+        let prompt = detect("请提供验证码 938211 以继续登录。")?.prompt
+        XCTAssertEqual(prompt, "Codex 需要你完成安全验证，请打开查看")
+        XCTAssertFalse(prompt?.contains("938211") ?? true)
+    }
+
+    func testLatestCompletedTurnWins() {
+        let data = transcript(finals: [
+            "请登录账号后继续。",
+            "修复已完成，测试全部通过。"
+        ])
+        XCTAssertNil(detector.detect(in: data))
+    }
+
+    func testDetectsEnglishConfirmationRequest() {
+        XCTAssertEqual(detect("Please confirm the account information before I continue.")?.prompt, "Codex 需要你确认信息")
+    }
+
+    private func detect(_ final: String) -> CodexActionRequest? {
+        detector.detect(in: transcript(finals: [final]))
+    }
+
+    private func transcript(finals: [String]) -> Data {
+        var lines: [String] = []
+        for (index, final) in finals.enumerated() {
+            lines.append(#"{"timestamp":"2026-08-13T18:10:11Z","type":"event_msg","payload":{"type":"task_started","turn_id":"turn-\#(index)"}}"#)
+            let escaped = final.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"").replacingOccurrences(of: "\n", with: "\\n")
+            lines.append(#"{"timestamp":"2026-08-13T18:11:00Z","type":"response_item","payload":{"type":"message","role":"assistant","phase":"final_answer","content":[{"type":"output_text","text":"\#(escaped)"}]}}"#)
+            lines.append(#"{"timestamp":"2026-08-13T18:12:00Z","type":"event_msg","payload":{"type":"task_complete"}}"#)
+        }
+        return Data((lines.joined(separator: "\n") + "\n").utf8)
     }
 }
 
@@ -204,6 +266,31 @@ final class AppSettingsTests: XCTestCase {
         XCTAssertEqual(restored.completionText, "完成 {count} 个")
         XCTAssertEqual(restored.voiceVolume, 0.41, accuracy: 0.001)
         XCTAssertEqual(restored.collapsedLayoutMode, .relaxed)
+    }
+
+    func testFeatureSettingsKeepLegacyUsersUndisturbedAndRequireOneEnabledFeature() {
+        let suite = "CodexIslandTests.Features.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+
+        // An existing alert preference identifies an install that predates
+        // 我的日程. Its established modules stay on, while the new schedule
+        // module remains opt-in.
+        defaults.set(true, forKey: "completionEnabled")
+        let settings = AppSettings(defaults: defaults)
+        XCTAssertEqual(settings.enabledFeatures, [.quickNotes, .codexFollowUp])
+        XCTAssertFalse(settings.isEnabled(.schedule))
+
+        settings.setEnabled(.schedule, enabled: true)
+        settings.setEnabled(.quickNotes, enabled: false)
+        settings.setEnabled(.codexFollowUp, enabled: false)
+        settings.setEnabled(.schedule, enabled: false)
+
+        XCTAssertEqual(settings.enabledFeatures, [.schedule])
+        XCTAssertFalse(settings.canDisable(.schedule))
+
+        let restored = AppSettings(defaults: defaults)
+        XCTAssertEqual(restored.enabledFeatures, [.schedule])
     }
 
     func testModuleMoveBeforePersistsOrder() {

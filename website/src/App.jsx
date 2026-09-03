@@ -7,7 +7,7 @@ import {
 } from "@phosphor-icons/react";
 import { ProductPricingSection, productNavigation, productNavigationCopy } from "./ProductPricingSection.jsx";
 
-const DOWNLOAD_URL = "/downloads/Halofold-1.0.7.zip";
+const DOWNLOAD_URL = "/downloads/Halofold-1.1.0.dmg";
 
 const productUiCopy = {
   zh: {
@@ -49,7 +49,7 @@ const copy = {
     nav: { voice: "语音提示", activity: "活动", notes: "便签", privacy: "隐私", download: "下载" },
     eyebrow: "专为 Codex 用户设计 · macOS 14+",
     heroTitleA: "不盯进度。", heroTitleB: "听见完成。",
-    heroBody: "Halofold 在灵动岛常驻，Codex 做完任务时用声音告诉你。",
+    heroBody: "Halofold 把 Codex 关键提醒、随手便签和个人计划收进 Mac 顶部：需要你时会提醒，完成时会播报，到点时帮你真正开始。",
     downloadMac: "下载 macOS 版", seeHow: "看看它如何工作", scenes: "任务场景", settings: "提醒设置",
     running: "运行中", runningDesc: "持续跟进后台活动", completed: "任务完成", completedDesc: "完成后立即发声",
     interrupted: "任务中断", interruptedDesc: "需要处理时提醒", systemVoice: "文案朗读", recording: "直接录音", audioFile: "导入音频",
@@ -64,8 +64,8 @@ const copy = {
     preview: "试听提醒", stopPreview: "停止试听", previewHint: "声音只会在你点击后播放",
     arrivalBlocked: "浏览器阻止了自动播放 · 点击听提醒", arrivalPlayed: "你有一个 Codex 任务已完成",
     activityKicker: "活动中心", activityTitle: "Codex 的进度，一眼就知道。",
-    activityBody: "运行中、已完成与已中断集中在 Mac 顶部；本周用量和本机今日 Token 也在同一处，不用反复切换窗口。",
-    activityPoints: ["点击活动即可回到对应 Codex 任务", "官方周用量与本地 Token 分开显示", "完成与中断状态清楚区分"],
+    activityBody: "运行中、待你处理、已完成与已中断集中在 Mac 顶部；本周用量和本机今日 Token 也在同一处，不用反复切换窗口。",
+    activityPoints: ["需要登录、确认或补充信息时及时提醒", "点击活动即可回到对应 Codex 任务", "官方周用量与本地 Token 分开显示"],
     notesKicker: "便签", notesTitle: "灵感出现时，不必离开当前工作。",
     notesBody: "从任何界面快速打开便签，记录、整理并自动保存在本机。它和活动并列存在，但不会打断你正在做的事。",
     notesPoints: ["标题、粗体、引用与列表格式", "多张便签横向切换", "内容仅保存在本机"],
@@ -75,18 +75,18 @@ const copy = {
       { title: "不碰凭据", body: "不读取、复制或保存 Codex 登录凭据。" },
       { title: "不会上传", body: "对话内容、便签与提醒音频都留在这台 Mac。" },
     ],
-    downloadKicker: "Halofold 1.0.7", downloadTitle: "让 Codex 在做完时告诉你。",
-    downloadBody: "适用于 macOS 14 及以上版本，同时支持 Apple Silicon 与 Intel Mac。",
-    directDownload: "下载 Halofold 1.0.7", installTitle: "安装很简单",
-    installSteps: ["下载并解压 ZIP", "将 Halofold 拖入“应用程序”", "首次打开时按系统提示确认"],
-    localZip: "通用安装包 · Apple Silicon + Intel", footerTitle: "做完时，Halofold 会叫你回来。", creatorPrefix: "作者", backTop: "返回顶部",
+    downloadKicker: "Halofold 1.1.0", downloadTitle: "把等待、灵感与下一步，放回同一个节奏。",
+    downloadBody: "Codex 跟进、快速便签与我的日程均为本地优先。适用于 macOS 14 及以上版本，同时支持 Apple Silicon 与 Intel Mac。",
+    directDownload: "下载 Halofold 1.1.0", installTitle: "安装很简单",
+    installSteps: ["下载并打开 DMG", "将 Halofold 拖入“应用程序”", "首次打开时按系统提示确认"],
+    localZip: "通用 DMG · Apple Silicon + Intel", footerTitle: "做完时，Halofold 会叫你回来。", creatorPrefix: "作者", backTop: "返回顶部",
     downloadStarted: "下载已开始",
   },
   en: {
     nav: { voice: "Voice", activity: "Activity", notes: "Notes", privacy: "Privacy", download: "Download" },
     eyebrow: "Built for Codex users · macOS 14+",
     heroTitleA: "Stop watching progress.", heroTitleB: "Hear when it’s done.",
-    heroBody: "Halofold stays in your Dynamic Island and tells you by voice when Codex finishes a task.",
+    heroBody: "Halofold brings Codex alerts, quick notes, and personal plans to the top of your Mac—calling you back when attention is needed and helping you start what comes next.",
     downloadMac: "Download for macOS", seeHow: "See how it works", scenes: "Task scenes", settings: "Reminder",
     running: "Running", runningDesc: "Following background work", completed: "Completed", completedDesc: "Hear it the moment it ends",
     interrupted: "Interrupted", interruptedDesc: "Know when attention is needed", systemVoice: "Text to speech", recording: "Your recording", audioFile: "Audio file",
@@ -101,8 +101,8 @@ const copy = {
     preview: "Preview reminder", stopPreview: "Stop preview", previewHint: "Audio only plays after you click",
     arrivalBlocked: "Browser blocked autoplay · Click to hear it", arrivalPlayed: "One Codex task has finished",
     activityKicker: "Activity center", activityTitle: "Know where Codex stands at a glance.",
-    activityBody: "Running, completed, and interrupted work stays together at the top of your Mac. Weekly usage and today's local tokens are there too—without another window.",
-    activityPoints: ["Open the matching Codex task in one click", "Keep official weekly usage separate from local tokens", "See completed and interrupted work clearly"],
+    activityBody: "Running, action-needed, completed, and interrupted work stays together at the top of your Mac. Weekly usage and today's local tokens are there too—without another window.",
+    activityPoints: ["Know when Codex needs a login, confirmation, or more context", "Open the matching Codex task in one click", "Keep official weekly usage separate from local tokens"],
     notesKicker: "Notes", notesTitle: "Capture the thought without leaving the work.",
     notesBody: "Open notes from anywhere, shape the idea, and keep it saved locally. Notes sit beside Activity without pulling you out of flow.",
     notesPoints: ["Headings, bold, quotes, and lists", "Move quickly between notes", "Everything stays on this Mac"],
@@ -112,11 +112,11 @@ const copy = {
       { title: "No credentials", body: "It never reads, copies, or stores your Codex login credentials." },
       { title: "No uploads", body: "Conversations, notes, and reminder audio stay on this Mac." },
     ],
-    downloadKicker: "Halofold 1.0.7", downloadTitle: "Hear when Codex is ready for you.",
-    downloadBody: "For macOS 14 and later. One universal build for Apple silicon and Intel Macs.",
-    directDownload: "Download Halofold 1.0.7", installTitle: "Three quick steps",
-    installSteps: ["Download and unzip", "Move Halofold to Applications", "Confirm the first launch when macOS asks"],
-    localZip: "Universal build · Apple silicon + Intel", footerTitle: "When it’s done, Halofold calls you back.", creatorPrefix: "Author", backTop: "Back to top",
+    downloadKicker: "Halofold 1.1.0", downloadTitle: "Bring waiting, ideas, and the next step into one rhythm.",
+    downloadBody: "Codex follow-up, quick notes, and personal schedules are local first. For macOS 14 and later, with one universal build for Apple silicon and Intel Macs.",
+    directDownload: "Download Halofold 1.1.0", installTitle: "Three quick steps",
+    installSteps: ["Download and open the DMG", "Move Halofold to Applications", "Confirm the first launch when macOS asks"],
+    localZip: "Universal DMG · Apple silicon + Intel", footerTitle: "When it’s done, Halofold calls you back.", creatorPrefix: "Author", backTop: "Back to top",
     downloadStarted: "Download started",
   },
 };
@@ -448,7 +448,7 @@ function SiteFooter({ t }) {
       <div className="footer-bottom">
         <a className="footer-brand" href="#top"><img src="/assets/halofold-icon.png" alt="" /><strong>Halofold</strong></a>
         <nav className="footer-nav" aria-label="Footer navigation"><a href="#voice">{t.nav.voice}</a><a href="#activity">{t.nav.activity}</a><a href="#notes">{t.nav.notes}</a><a href="#privacy">{t.nav.privacy}</a></nav>
-        <div className="footer-meta"><span>Halofold 1.0.7</span><span>macOS 14+ · Apple Silicon + Intel</span></div>
+        <div className="footer-meta"><span>Halofold 1.1.0</span><span>macOS 14+ · Apple Silicon + Intel</span></div>
         <a className="creator-link" href="https://aitiny.top" target="_blank" rel="noreferrer"><span>{t.creatorPrefix}</span>{" "}<strong>Tiny</strong><ArrowRight size={16} /></a>
       </div>
     </footer>

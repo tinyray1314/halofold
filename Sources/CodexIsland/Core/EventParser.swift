@@ -131,16 +131,25 @@ struct ConversationReducer {
             record.turnStartedAt = date
             record.updatedAt = date
             record.pauseReason = nil
+            record.actionPrompt = nil
+            record.isCompletionUnread = false
+        case let .taskNeedsAction(prompt, date):
+            record.state = .needsAction
+            record.updatedAt = date
+            record.pauseReason = nil
+            record.actionPrompt = prompt
             record.isCompletionUnread = false
         case let .taskCompleted(date):
             record.state = .completed
             record.updatedAt = date
             record.pauseReason = nil
+            record.actionPrompt = nil
             record.isCompletionUnread = true
         case let .taskPaused(reason, date):
             record.state = .paused
             record.updatedAt = date
             record.pauseReason = reason
+            record.actionPrompt = nil
             record.isCompletionUnread = false
         case .tokenDelta, .localRateLimit:
             return nil

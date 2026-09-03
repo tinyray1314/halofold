@@ -1,5 +1,6 @@
 import Foundation
 
+#if !HALOFOLD_NO_CODEX_TODO
 enum CodexTodoConfidence: String, Codable, Sendable {
     case explicit
     case possible
@@ -289,3 +290,4 @@ final class CodexTodoImportStore {
         try data.write(to: fileURL, options: .atomic)
     }
 }
+#endif

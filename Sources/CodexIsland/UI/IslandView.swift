@@ -77,6 +77,9 @@ struct IslandView: View {
                             if model.expandedWorkspace == .notes {
                                 NotesWorkspaceView(model: model)
                                     .transition(.horizontalFade(offset: -14))
+                            } else if model.expandedWorkspace == .schedule {
+                                ScheduleWorkspaceView(model: model)
+                                    .transition(.horizontalFade(offset: 14))
                             } else {
                                 expandedCard
                                     .transition(.horizontalFade(offset: 14))
@@ -121,8 +124,9 @@ struct IslandView: View {
     @ViewBuilder
     private var taskStatusWing: some View {
         if settings.isEnabled(.taskStatus) {
-            HStack(spacing: settings.collapsedLayoutMode == .compact ? 8 : 11) {
+            HStack(spacing: settings.collapsedLayoutMode == .compact ? 6 : 8) {
                 notchMetric(color: .islandGreen, icon: nil, label: AppLocalization.text(settings.collapsedLayoutMode == .compact ? "运行" : "运行中"), value: model.runningCount)
+                notchMetric(color: .islandBlue, icon: "hand.raised.fill", label: AppLocalization.text("待办"), value: model.needsActionCount)
                 notchMetric(color: .white.opacity(0.92), icon: "checkmark", label: AppLocalization.text("完成"), value: model.completedCount)
                 notchMetric(color: .islandAmber, icon: "exclamationmark", label: AppLocalization.text("中断"), value: model.pausedCount)
             }
@@ -176,18 +180,34 @@ struct IslandView: View {
                     .font(.system(size: 15, weight: .medium))
                     .foregroundStyle(.white.opacity(0.68))
                 Spacer()
-                Button {
-                    model.showNotesWorkspace()
-                } label: {
-                    Label("便签", systemImage: "note.text")
-                        .font(.system(size: 12.5, weight: .medium))
-                        .padding(.horizontal, 10)
-                        .frame(height: 30)
-                        .background(Color.white.opacity(0.07), in: Capsule())
+                if settings.isEnabled(.schedule) {
+                    Button {
+                        model.showScheduleWorkspace()
+                    } label: {
+                        Label("日程", systemImage: "clock")
+                            .font(.system(size: 12.5, weight: .medium))
+                            .padding(.horizontal, 10)
+                            .frame(height: 30)
+                            .background(Color.islandBlue.opacity(0.1), in: Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(Color.islandBlue)
+                    .accessibilityLabel("打开我的日程")
                 }
-                .buttonStyle(.plain)
-                .foregroundStyle(.white.opacity(0.78))
-                .accessibilityLabel("打开便签")
+                if settings.isEnabled(.quickNotes) {
+                    Button {
+                        model.showNotesWorkspace()
+                    } label: {
+                        Label("便签", systemImage: "note.text")
+                            .font(.system(size: 12.5, weight: .medium))
+                            .padding(.horizontal, 10)
+                            .frame(height: 30)
+                            .background(Color.white.opacity(0.07), in: Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.white.opacity(0.78))
+                    .accessibilityLabel("打开便签")
+                }
                 Button {
                     NotificationCenter.default.post(name: .showCodexIslandSettings, object: nil)
                 } label: {
@@ -267,6 +287,10 @@ struct IslandView: View {
                         }
                     }
                 }
+                if !needsActionConversations.isEmpty {
+                    Divider().overlay(Color.white.opacity(0.11)).padding(.horizontal, 24)
+                    resultDisclosure(state: .needsAction, conversations: needsActionConversations)
+                }
                 if !completedConversations.isEmpty {
                     Divider().overlay(Color.white.opacity(0.11)).padding(.horizontal, 24)
                     resultDisclosure(state: .completed, conversations: completedConversations)
@@ -287,6 +311,10 @@ struct IslandView: View {
         model.visibleConversations.filter { $0.state == .completed }
     }
 
+    private var needsActionConversations: [ConversationRecord] {
+        model.visibleConversations.filter { $0.state == .needsAction }
+    }
+
     private var pausedConversations: [ConversationRecord] {
         model.visibleConversations.filter { $0.state == .paused }
     }
@@ -303,7 +331,7 @@ struct IslandView: View {
             } label: {
                 HStack(spacing: 11) {
                 resultStateIcon(state)
-                Text(AppLocalization.format(state == .completed ? "完成记录 · %lld" : "中断 · %lld", Int64(conversations.count)))
+                Text(disclosureTitle(for: state, count: conversations.count))
                     .font(.system(size: 15, weight: .medium))
                     .foregroundStyle(.white.opacity(0.92))
                 Spacer()
@@ -343,14 +371,25 @@ struct IslandView: View {
         }
     }
 
+    private func disclosureTitle(for state: ConversationState, count: Int) -> String {
+        switch state {
+        case .running: return AppLocalization.format("运行中 · %lld", Int64(count))
+        case .needsAction: return AppLocalization.format("待你处理 · %lld", Int64(count))
+        case .completed: return AppLocalization.format("完成记录 · %lld", Int64(count))
+        case .paused: return AppLocalization.format("中断 · %lld", Int64(count))
+        }
+    }
+
     private func resultStateIcon(_ state: ConversationState) -> some View {
-        ZStack {
+        let isCompleted = state == .completed
+        let isAction = state == .needsAction
+        return ZStack {
             Circle()
-                .fill(state == .completed ? Color.white.opacity(0.92) : Color.islandAmber)
+                .fill(isCompleted ? Color.white.opacity(0.92) : (isAction ? Color.islandBlue : Color.islandAmber))
                 .frame(width: 23, height: 23)
-            Image(systemName: state == .completed ? "checkmark" : "exclamationmark")
+            Image(systemName: isCompleted ? "checkmark" : (isAction ? "hand.raised.fill" : "exclamationmark"))
                 .font(.system(size: 10, weight: .bold))
-                .foregroundStyle(state == .completed ? Color.black.opacity(0.75) : Color.white)
+                .foregroundStyle(isCompleted ? Color.black.opacity(0.75) : Color.white)
         }
     }
 
@@ -516,6 +555,12 @@ private struct ConversationRow: View {
                             .foregroundStyle(Color.islandAmber.opacity(0.86))
                             .lineLimit(1)
                     }
+                    if conversation.state == .needsAction, let prompt = conversation.actionPrompt {
+                        Text(prompt)
+                            .font(.system(size: 11))
+                            .foregroundStyle(Color.islandBlue.opacity(0.9))
+                            .lineLimit(1)
+                    }
                 }
                 Spacer()
                 Text(relativeTime)
@@ -536,6 +581,11 @@ private struct ConversationRow: View {
         switch conversation.state {
         case .running:
             Circle().fill(Color.islandGreen).frame(width: 17, height: 17)
+        case .needsAction:
+            ZStack {
+                Circle().fill(Color.islandBlue).frame(width: 22, height: 22)
+                Image(systemName: "hand.raised.fill").font(.system(size: 9, weight: .bold)).foregroundStyle(.white)
+            }
         case .completed:
             ZStack {
                 Circle().fill(Color.white.opacity(0.9)).frame(width: 22, height: 22)

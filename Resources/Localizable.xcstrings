@@ -163,15 +163,57 @@
         }
       }
     },
-    "运行中 %lld   完成 %lld   中断 %lld": {
+    "运行中 %lld   待处理 %lld   完成 %lld   中断 %lld": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Running %1$lld   Done %2$lld   Interrupted %3$lld"
+            "value": "Running %1$lld   Action %2$lld   Done %3$lld   Interrupted %4$lld"
           }
         }
       }
+    },
+    "待你处理": {
+      "localizations": { "en": { "stringUnit": { "state": "translated", "value": "Needs your action" } } }
+    },
+    "待办": {
+      "localizations": { "en": { "stringUnit": { "state": "translated", "value": "Action" } } }
+    },
+    "待你处理 · %lld": {
+      "localizations": { "en": { "stringUnit": { "state": "translated", "value": "Needs your action · %lld" } } }
+    },
+    "Codex 需要你登录账号": {
+      "localizations": { "en": { "stringUnit": { "state": "translated", "value": "Codex needs you to sign in" } } }
+    },
+    "Codex 需要你确认信息": {
+      "localizations": { "en": { "stringUnit": { "state": "translated", "value": "Codex needs you to confirm information" } } }
+    },
+    "Codex 需要你完成授权": {
+      "localizations": { "en": { "stringUnit": { "state": "translated", "value": "Codex needs your authorization" } } }
+    },
+    "Codex 需要你完成选择": {
+      "localizations": { "en": { "stringUnit": { "state": "translated", "value": "Codex needs you to make a selection" } } }
+    },
+    "Codex 需要你补充信息": {
+      "localizations": { "en": { "stringUnit": { "state": "translated", "value": "Codex needs more information from you" } } }
+    },
+    "Codex 需要你完成安全验证，请打开查看": {
+      "localizations": { "en": { "stringUnit": { "state": "translated", "value": "Codex needs a security check. Open it to review." } } }
+    },
+    "Codex 有一项任务需要你处理，请打开查看": {
+      "localizations": { "en": { "stringUnit": { "state": "translated", "value": "Codex needs your action on a task. Open it to review." } } }
+    },
+    "Codex 有 %lld 个任务需要你处理，请打开查看": {
+      "localizations": { "en": { "stringUnit": { "state": "translated", "value": "Codex needs your action on %lld tasks. Open it to review." } } }
+    },
+    "Codex 明确需要你登录、确认、授权或补充信息时，朗读一条本地提炼的短提示。": {
+      "localizations": { "en": { "stringUnit": { "state": "translated", "value": "When Codex explicitly needs you to sign in, confirm, authorize, or provide information, speak a short locally generated prompt." } } }
+    },
+    "示例：Codex 需要你确认信息": {
+      "localizations": { "en": { "stringUnit": { "state": "translated", "value": "Example: Codex needs you to confirm information" } } }
+    },
+    "仅在本机识别，不会朗读密码或验证码": {
+      "localizations": { "en": { "stringUnit": { "state": "translated", "value": "Processed locally; passwords and verification codes are never spoken" } } }
     },
     "%@已替换为新录音": {
       "localizations": {

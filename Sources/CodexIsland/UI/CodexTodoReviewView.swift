@@ -1,5 +1,6 @@
 import SwiftUI
 
+#if !HALOFOLD_NO_CODEX_TODO
 struct CodexTodoReviewView: View {
     let candidates: [CodexTodoCandidate]
     @Binding var selectedIDs: Set<String>
@@ -123,3 +124,4 @@ struct CodexTodoReviewView: View {
         .buttonStyle(.plain)
     }
 }
+#endif

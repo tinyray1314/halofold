@@ -6,6 +6,12 @@ import SwiftUI
 @MainActor
 private enum ApplicationInstanceGuard {
     static func shouldContinueLaunching() -> Bool {
+        // Unit tests run inside the app bundle. They are an isolated test host,
+        // not a second user launch, so the normal single-instance rule must
+        // not terminate them when Halofold is already open.
+        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {
+            return true
+        }
         guard let bundleIdentifier = Bundle.main.bundleIdentifier else { return true }
         let currentPID = ProcessInfo.processInfo.processIdentifier
         let running = NSRunningApplication.runningApplications(withBundleIdentifier: bundleIdentifier)
@@ -59,6 +65,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             keyCode: UInt32(kVK_Space),
             modifiers: UInt32(cmdKey | shiftKey)
         ) { [weak self] in
+            guard self?.model.settings.isEnabled(.quickNotes) == true else { return }
             self?.islandController?.presentNewNote()
         }
         model.start()
@@ -70,6 +77,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         } else if ProcessInfo.processInfo.arguments.contains("--notes-demo") {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) { [weak self] in
                 self?.islandController?.showNotesWorkspace()
+            }
+        } else if ProcessInfo.processInfo.arguments.contains("--activity-demo") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
+                self?.islandController?.showActivityWorkspace()
             }
         } else if ProcessInfo.processInfo.arguments.contains("--workspace-motion-demo") {
             islandController?.showNotesWorkspace()
@@ -111,8 +122,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.removeAllItems()
         let summary = NSMenuItem(
             title: AppLocalization.format(
-                "运行中 %lld   完成 %lld   中断 %lld",
-                Int64(model.runningCount), Int64(model.completedCount), Int64(model.pausedCount)
+                "运行中 %lld   待处理 %lld   完成 %lld   中断 %lld",
+                Int64(model.runningCount), Int64(model.needsActionCount), Int64(model.completedCount), Int64(model.pausedCount)
             ),
             action: nil,
             keyEquivalent: ""
@@ -120,8 +131,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         summary.isEnabled = false
         menu.addItem(summary)
         menu.addItem(.separator())
-        let newNote = menu.addItem(withTitle: AppLocalization.text("新建便签"), action: #selector(newNoteAction), keyEquivalent: " ")
-        newNote.keyEquivalentModifierMask = [.command, .shift]
+        if model.settings.isEnabled(.quickNotes) {
+            let newNote = menu.addItem(withTitle: AppLocalization.text("新建便签"), action: #selector(newNoteAction), keyEquivalent: " ")
+            newNote.keyEquivalentModifierMask = [.command, .shift]
+        }
         menu.addItem(withTitle: AppLocalization.text(model.isExpanded ? "收起灵动岛" : "展开灵动岛"), action: #selector(toggleExpanded), keyEquivalent: "")
         menu.addItem(withTitle: AppLocalization.text("显示 / 隐藏灵动岛"), action: #selector(toggleIslandVisibility), keyEquivalent: "")
         menu.addItem(withTitle: AppLocalization.text("设置…"), action: #selector(showSettingsAction), keyEquivalent: ",")

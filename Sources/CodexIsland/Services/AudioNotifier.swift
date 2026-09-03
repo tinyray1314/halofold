@@ -36,6 +36,7 @@ final class AudioNotifier: NSObject, AVSpeechSynthesizerDelegate, AVAudioPlayerD
     private var synthesizer: AVSpeechSynthesizer?
     private var player: AVAudioPlayer?
     private var accumulator = AlertBatchAccumulator()
+    private var pendingActionPrompts: [String] = []
     private var batchWorkItem: DispatchWorkItem?
     private var playbackQueue: [Playback] = []
 
@@ -47,6 +48,36 @@ final class AudioNotifier: NSObject, AVSpeechSynthesizerDelegate, AVAudioPlayerD
     func enqueue(_ kind: AlertKind, count: Int = 1) {
         guard count > 0 else { return }
         accumulator.add(kind, count: count)
+        scheduleFlush()
+    }
+
+    func enqueueAction(_ prompt: String) {
+        let value = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !value.isEmpty else { return }
+        pendingActionPrompts.append(value)
+        scheduleFlush()
+    }
+
+    /// Used by local-only schedule reminders. A planned start may interrupt an
+    /// older informational announcement; low-priority routine reminders do not.
+    func speak(_ text: String, interrupt: Bool = false) {
+        let value = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !value.isEmpty else { return }
+        if interrupt {
+            playbackQueue.insert(.speech(value), at: 0)
+            playNextIfNeeded(force: true)
+        } else {
+            playbackQueue.append(.speech(value))
+            playNextIfNeeded()
+        }
+    }
+
+    func previewAction() {
+        playbackQueue.insert(.speech(AppLocalization.text("Codex 需要你确认信息")), at: 0)
+        playNextIfNeeded(force: true)
+    }
+
+    private func scheduleFlush() {
         batchWorkItem?.cancel()
         let item = DispatchWorkItem { [weak self] in self?.flushBatch() }
         batchWorkItem = item
@@ -71,7 +102,15 @@ final class AudioNotifier: NSObject, AVSpeechSynthesizerDelegate, AVAudioPlayerD
     private func flushBatch() {
         batchWorkItem = nil
 
-        // 同批出现时先中断、后完成。
+        if settings.actionRequiredEnabled, !pendingActionPrompts.isEmpty {
+            let text = pendingActionPrompts.count == 1
+                ? pendingActionPrompts[0]
+                : AppLocalization.format("Codex 有 %lld 个任务需要你处理，请打开查看", Int64(pendingActionPrompts.count))
+            playbackQueue.append(.speech(text))
+        }
+        pendingActionPrompts.removeAll()
+
+        // 同批出现时先待处理，再中断、最后完成。
         for (kind, count) in accumulator.drain() {
             let enabled = kind == .paused ? settings.pauseEnabled : settings.completionEnabled
             if enabled, let item = try? makePlayback(kind: kind, count: count) {

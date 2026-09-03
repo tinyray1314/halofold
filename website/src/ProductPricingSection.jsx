@@ -5,7 +5,9 @@ import {
   DownloadSimple,
   QrCode,
   UsersThree,
+  XLogo,
 } from "@phosphor-icons/react";
+import { getXShareUrl } from "./share-intent.js";
 import "./product-pricing.css";
 
 export const productNavigation = {
@@ -34,8 +36,10 @@ const pricingCopy = {
     badge: "Beta 版免费",
     price: "¥0",
     priceNote: "Beta 期间",
-    features: ["Codex 活动与语音提醒", "本地便签", "Apple Silicon 与 Intel Mac"],
+    features: ["Codex 状态、待处理动作与语音提醒", "本地便签与我的日程", "Apple Silicon 与 Intel Mac"],
     download: "免费下载 Beta 版",
+    shareOnX: "分享到 X",
+    shareOnXAria: "在 X 上推荐 Halofold",
     communityKicker: "产品交流群",
     communityTitle: "一起把 Halofold 做得更好。",
     communityBody: "扫码添加作者微信，反馈问题、交流用法，也可以聊聊你希望灵动岛接下来还能做什么。",
@@ -50,8 +54,10 @@ const pricingCopy = {
     badge: "Free beta",
     price: "$0",
     priceNote: "during beta",
-    features: ["Codex activity and voice alerts", "Local notes", "Apple silicon and Intel Macs"],
+    features: ["Codex status, action requests, and voice alerts", "Local notes and personal schedules", "Apple silicon and Intel Macs"],
     download: "Download the free beta",
+    shareOnX: "Share on X",
+    shareOnXAria: "Recommend Halofold on X",
     communityKicker: "Product community",
     communityTitle: "Help shape what Halofold becomes.",
     communityBody: "Scan to add the creator on WeChat, share feedback, compare workflows, and tell us what the Dynamic Island should do next.",
@@ -63,7 +69,7 @@ const pricingCopy = {
 
 export function ProductPricingSection({
   locale = "zh",
-  downloadUrl = "/downloads/Halofold-1.0.7.zip",
+  downloadUrl = "/downloads/Halofold-1.1.0.dmg",
 }) {
   const t = pricingCopy[locale] ?? pricingCopy.zh;
 
@@ -93,11 +99,23 @@ export function ProductPricingSection({
             ))}
           </ul>
 
-          <a className="beta-download-button" href={downloadUrl} download>
-            <DownloadSimple size={19} aria-hidden="true" />
-            {t.download}
-            <ArrowDown size={17} aria-hidden="true" />
-          </a>
+          <div className="beta-action-stack">
+            <a className="beta-download-button" href={downloadUrl} download>
+              <DownloadSimple size={19} aria-hidden="true" />
+              {t.download}
+              <ArrowDown size={17} aria-hidden="true" />
+            </a>
+            <a
+              className="x-share-button"
+              href={getXShareUrl(locale)}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={t.shareOnXAria}
+            >
+              <XLogo size={18} weight="fill" aria-hidden="true" />
+              {t.shareOnX}
+            </a>
+          </div>
         </article>
 
         <article className="community-card">

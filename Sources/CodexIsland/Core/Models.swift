@@ -2,14 +2,16 @@ import Foundation
 
 enum ConversationState: String, Codable, CaseIterable, Hashable, Sendable {
     case running
+    case needsAction
     case completed
     case paused
 
     var sortOrder: Int {
         switch self {
         case .running: return 0
-        case .completed: return 1
-        case .paused: return 2
+        case .needsAction: return 1
+        case .completed: return 2
+        case .paused: return 3
         }
     }
 }
@@ -29,6 +31,7 @@ struct ConversationRecord: Identifiable, Codable, Equatable, Sendable {
     var turnStartedAt: Date?
     var isArchived: Bool
     var pauseReason: String?
+    var actionPrompt: String?
     var kind: ConversationKind
     var parentThreadID: String?
     var isCompletionUnread: Bool
@@ -44,6 +47,7 @@ struct ConversationRecord: Identifiable, Codable, Equatable, Sendable {
         turnStartedAt: Date? = nil,
         isArchived: Bool = false,
         pauseReason: String? = nil,
+        actionPrompt: String? = nil,
         kind: ConversationKind = .user,
         parentThreadID: String? = nil,
         isCompletionUnread: Bool = false
@@ -56,13 +60,14 @@ struct ConversationRecord: Identifiable, Codable, Equatable, Sendable {
         self.turnStartedAt = turnStartedAt
         self.isArchived = isArchived
         self.pauseReason = pauseReason
+        self.actionPrompt = actionPrompt
         self.kind = kind
         self.parentThreadID = parentThreadID
         self.isCompletionUnread = isCompletionUnread
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, title, rolloutPath, state, updatedAt, turnStartedAt, isArchived, pauseReason
+        case id, title, rolloutPath, state, updatedAt, turnStartedAt, isArchived, pauseReason, actionPrompt
         case kind, parentThreadID, isCompletionUnread
     }
 
@@ -76,6 +81,7 @@ struct ConversationRecord: Identifiable, Codable, Equatable, Sendable {
         turnStartedAt = try values.decodeIfPresent(Date.self, forKey: .turnStartedAt)
         isArchived = try values.decodeIfPresent(Bool.self, forKey: .isArchived) ?? false
         pauseReason = try values.decodeIfPresent(String.self, forKey: .pauseReason)
+        actionPrompt = try values.decodeIfPresent(String.self, forKey: .actionPrompt)
         kind = try values.decodeIfPresent(ConversationKind.self, forKey: .kind) ?? .user
         parentThreadID = try values.decodeIfPresent(String.self, forKey: .parentThreadID)
         // 升级前的完成记录一律视为已查看，避免安装新版后历史结果全部变成新提醒。
@@ -124,6 +130,7 @@ enum DisplayModule: String, Codable, CaseIterable, Identifiable, Sendable {
 enum ExpandedWorkspace: String, Codable, Sendable {
     case notes
     case activity
+    case schedule
 }
 
 enum CollapsedLayoutMode: String, Codable, CaseIterable, Identifiable, Sendable {
@@ -148,8 +155,8 @@ enum CollapsedLayoutMode: String, Codable, CaseIterable, Identifiable, Sendable 
 
     var leftWingWidth: Double {
         switch self {
-        case .compact: return 212
-        case .relaxed: return 238
+        case .compact: return 258
+        case .relaxed: return 274
         }
     }
 
@@ -180,6 +187,7 @@ enum VoiceMode: String, Codable, CaseIterable, Identifiable, Sendable {
 
 enum CodexSignal: Equatable, Sendable {
     case taskStarted(turnID: String?, at: Date)
+    case taskNeedsAction(prompt: String, at: Date)
     case taskCompleted(at: Date)
     case taskPaused(reason: String, at: Date)
     case tokenDelta(Int, at: Date)
