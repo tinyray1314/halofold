@@ -122,7 +122,9 @@ final class ApplicationModel: ObservableObject {
         if !CodexDataAccess.shared.isSandboxed {
             refreshOfficialUsage()
             usageTimer = Timer.scheduledTimer(withTimeInterval: 300, repeats: true) { [weak self] _ in
-                Task { @MainActor in self?.refreshOfficialUsage() }
+                DispatchQueue.main.async { [weak self] in
+                    self?.refreshOfficialUsage()
+                }
             }
         }
     }
@@ -137,7 +139,9 @@ final class ApplicationModel: ObservableObject {
     private func startScheduleMonitoring() {
         guard scheduleTimer == nil else { return }
         scheduleTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.checkScheduleReminders() }
+            DispatchQueue.main.async { [weak self] in
+                self?.checkScheduleReminders()
+            }
         }
         if let scheduleTimer {
             RunLoop.main.add(scheduleTimer, forMode: .common)
