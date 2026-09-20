@@ -1314,14 +1314,14 @@ private struct PrivacyPolicyView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 15) {
 #if HALOFOLD_NO_CODEX_TODO
-                    policySection(AppLocalization.text("本机数据访问"), AppLocalization.text("仅在你主动选择并授权后，应用才会以只读方式访问 .codex 文件夹，用于显示任务状态、对话标题、本机 Token 统计和官方用量快照。应用不会读取、复制或保存 Codex 登录凭据。"))
+                    policySection(AppLocalization.text("本机数据访问"), AppLocalization.text("日常功能仅在你主动选择并授权后以只读方式访问 .codex 文件夹，用于显示任务状态、对话标题、本机 Token 统计和官方用量快照。应用不会读取、复制或保存 Codex 登录凭据。只有你主动启动“修复会话历史”、单独授权写入并最终确认后，应用才会在 Codex 已退出时创建本地快照，并只向侧边栏目录新增缺失入口；不会删除、覆盖或修改会话主库、rollout、账号或 provider 配置，写入授权不会长期保存。"))
 #else
-                    policySection(AppLocalization.text("本机数据访问"), AppLocalization.text("仅在你主动选择并授权后，应用才会以只读方式访问 .codex 文件夹，用于显示任务状态、对话标题、本机 Token 统计和官方用量快照。当你主动使用“发现待办”时，应用还会在本机分析最近对话正文。对话内容不会上传，应用也不会读取、复制或保存 Codex 登录凭据。"))
+                    policySection(AppLocalization.text("本机数据访问"), AppLocalization.text("日常功能仅在你主动选择并授权后以只读方式访问 .codex 文件夹，用于显示任务状态、对话标题、本机 Token 统计和官方用量快照。当你主动使用“发现待办”时，应用还会在本机分析最近对话正文。只有你主动启动“修复会话历史”、单独授权写入并最终确认后，应用才会在 Codex 已退出时创建本地快照，并只向侧边栏目录新增缺失入口；不会删除、覆盖或修改会话主库、rollout、账号或 provider 配置，写入授权不会长期保存。对话内容不会上传，应用也不会读取、复制或保存 Codex 登录凭据。"))
 #endif
                     policySection(AppLocalization.text("数据收集与传输"), AppLocalization.text("应用不收集个人数据，不使用分析或广告 SDK，不跟踪用户，也不会把 .codex 文件夹内容发送给开发者或任何第三方服务器。"))
                     policySection(AppLocalization.text("本地存储"), AppLocalization.text("应用设置、任务读取断点、安全作用域书签和你主动录制或导入的提醒音频，只保存在这台 Mac 的应用容器中。"))
                     policySection(AppLocalization.text("第三方服务"), AppLocalization.text("点击任务时，应用仅通过本机 codex:// 链接打开已安装的 Codex app。"))
-                    Text(AppLocalization.text("最后更新：2026 年 8 月 21 日"))
+                    Text(AppLocalization.text("最后更新：2026 年 9 月 20 日"))
                         .font(.system(size: 11.5))
                         .foregroundStyle(.secondary)
                 }

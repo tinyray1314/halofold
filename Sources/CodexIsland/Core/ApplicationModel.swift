@@ -19,6 +19,12 @@ final class ApplicationModel: ObservableObject {
     @Published private(set) var sessionVisibilityReport: SessionVisibilityReport?
     @Published private(set) var sessionVisibilityError: String?
     @Published private(set) var isScanningSessionVisibility = false
+    @Published private(set) var sessionCatalogRepairPlan: SessionCatalogRepairPlan?
+    @Published private(set) var sessionCatalogRepairError: String?
+    @Published private(set) var sessionCatalogRepairResult: SessionCatalogRepairResult?
+    @Published private(set) var isPreparingSessionCatalogRepair = false
+    @Published private(set) var isApplyingSessionCatalogRepair = false
+    @Published var isSessionCatalogRepairConfirmationPresented = false
     @Published private(set) var recordingAlertKind: AlertKind?
     @Published private(set) var isRecordingVoiceDraft = false
     @Published private(set) var isPresentingSystemPermissionPrompt = false
@@ -80,6 +86,8 @@ final class ApplicationModel: ObservableObject {
     private let eventSource: CodexEventSource
     private let usageClient: CodexUsageClient
     private let sessionVisibilityDiagnostic = SessionVisibilityDiagnostic()
+    private let sessionCatalogRepair = SessionCatalogRepair()
+    private var repairAuthorizedCodexDirectory: URL?
     private let audioNotifier: AudioNotifier
     private let audioDirectory: URL
     private let audioRecorder: LocalAudioRecorder
@@ -418,6 +426,80 @@ final class ApplicationModel: ObservableObject {
                     self.sessionVisibilityReport = report
                 case let .failure(error):
                     self.sessionVisibilityError = AppLocalization.format("会话检查失败：%@", error.localizedDescription)
+                }
+            }
+        }
+    }
+
+    /// Builds a repair preview only. It is safe to call repeatedly and never requests write access.
+    func prepareSessionCatalogRepair() {
+        guard let codexDirectory = CodexDataAccess.shared.codexDirectory else {
+            sessionCatalogRepairError = AppLocalization.text("请先授权访问 .codex 文件夹")
+            return
+        }
+        guard !isPreparingSessionCatalogRepair, !isApplyingSessionCatalogRepair else { return }
+        isPreparingSessionCatalogRepair = true
+        sessionCatalogRepairError = nil
+        sessionCatalogRepairResult = nil
+        repairAuthorizedCodexDirectory = nil
+        let repair = sessionCatalogRepair
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            let result = Result { try repair.makePlan(codexDirectory: codexDirectory) }
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.isPreparingSessionCatalogRepair = false
+                switch result {
+                case let .success(plan):
+                    self.sessionCatalogRepairPlan = plan
+                    if plan.isEmpty {
+                        self.sessionCatalogRepairError = AppLocalization.text("没有找到符合严格条件、可安全补回的侧边栏入口")
+                    }
+                case let .failure(error):
+                    self.sessionCatalogRepairPlan = nil
+                    self.sessionCatalogRepairError = AppLocalization.format("无法准备恢复：%@", error.localizedDescription)
+                }
+            }
+        }
+    }
+
+    /// The separate write grant is intentionally requested only after the user has reviewed a plan.
+    func authorizeSessionCatalogRepair() {
+        guard let plan = sessionCatalogRepairPlan, !plan.isEmpty else { return }
+        do {
+            guard let directory = try CodexDataAccess.shared.requestRepairAccess() else { return }
+            repairAuthorizedCodexDirectory = directory
+            isSessionCatalogRepairConfirmationPresented = true
+        } catch {
+            sessionCatalogRepairError = AppLocalization.format("无法取得本次写入授权：%@", error.localizedDescription)
+        }
+    }
+
+    /// Called only from the final destructive-style confirmation action.
+    func applyAuthorizedSessionCatalogRepair() {
+        guard let codexDirectory = repairAuthorizedCodexDirectory,
+              !isApplyingSessionCatalogRepair
+        else { return }
+        isApplyingSessionCatalogRepair = true
+        sessionCatalogRepairError = nil
+        let repair = sessionCatalogRepair
+        let diagnostic = sessionVisibilityDiagnostic
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let result = Result {
+                let repairResult = try repair.repair(codexDirectory: codexDirectory)
+                let visibilityReport = try diagnostic.scan(codexDirectory: codexDirectory)
+                return (repairResult, visibilityReport)
+            }
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.isApplyingSessionCatalogRepair = false
+                self.repairAuthorizedCodexDirectory = nil
+                switch result {
+                case let .success((repairResult, visibilityReport)):
+                    self.sessionCatalogRepairResult = repairResult
+                    self.sessionVisibilityReport = visibilityReport
+                    self.sessionCatalogRepairPlan = nil
+                case let .failure(error):
+                    self.sessionCatalogRepairError = AppLocalization.format("恢复未完成：%@", error.localizedDescription)
                 }
             }
         }

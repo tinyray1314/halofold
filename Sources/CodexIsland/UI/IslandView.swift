@@ -294,6 +294,14 @@ struct IslandView: View {
             Button("取消", role: .cancel) {}
             Button("退出", role: .destructive) { NSApp.terminate(nil) }
         } message: { Text("退出后将停止任务监测和提醒。") }
+        .alert("确认补回缺失的侧边栏入口？", isPresented: $model.isSessionCatalogRepairConfirmationPresented) {
+            Button("取消", role: .cancel) {}
+            Button("创建备份并恢复", role: .destructive) {
+                model.applyAuthorizedSessionCatalogRepair()
+            }
+        } message: {
+            Text("请确认 Codex 已完全退出。将再次检查条件、为两份数据库和候选 rollout 创建快照，然后只新增缺失的本地侧边栏入口；不会删除、覆盖或修改会话主库、rollout、账号或 provider 配置。")
+        }
     }
 
     private func workspaceTab(_ workspace: ExpandedWorkspace, title: String, icon: String, action: @escaping () -> Void) -> some View {
@@ -387,6 +395,7 @@ struct IslandView: View {
                         .font(.system(size: 10.5))
                         .foregroundStyle(.white.opacity(0.42))
                 }
+                sessionCatalogRepairControls(report: report)
             } else if let error = model.sessionVisibilityError {
                 Text(error)
                     .font(.system(size: 11.5))
@@ -401,6 +410,43 @@ struct IslandView: View {
         .padding(.top, 12)
         .padding(.bottom, 9)
         .background(Color.white.opacity(0.035))
+    }
+
+    @ViewBuilder
+    private func sessionCatalogRepairControls(report: SessionVisibilityReport) -> some View {
+        if model.isPreparingSessionCatalogRepair || model.isApplyingSessionCatalogRepair {
+            HStack(spacing: 6) {
+                ProgressView().controlSize(.small)
+                Text(model.isApplyingSessionCatalogRepair ? "正在备份、补回并复核…" : "正在生成只读恢复计划…")
+            }
+            .font(.system(size: 10.5))
+            .foregroundStyle(.white.opacity(0.5))
+        } else if let plan = model.sessionCatalogRepairPlan, !plan.isEmpty {
+            Text("已找到 \(plan.candidates.count) 个可安全补回的本地根会话；仅会新增侧边栏入口。")
+                .font(.system(size: 10.5))
+                .foregroundStyle(Color.islandMint.opacity(0.88))
+            Button("申请写入权限并确认恢复", action: model.authorizeSessionCatalogRepair)
+                .buttonStyle(.plain)
+                .font(.system(size: 11.5, weight: .semibold))
+                .foregroundStyle(Color.islandBlue)
+        } else if report.missingCatalogEntryCount > 0 {
+            Button("生成安全恢复计划", action: model.prepareSessionCatalogRepair)
+                .buttonStyle(.plain)
+                .font(.system(size: 11.5, weight: .semibold))
+                .foregroundStyle(Color.islandBlue)
+        }
+
+        if let error = model.sessionCatalogRepairError {
+            Text(error)
+                .font(.system(size: 10.5))
+                .foregroundStyle(Color.islandAmber)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        if let result = model.sessionCatalogRepairResult {
+            Text("已补回 \(result.repairedThreadIDs.count) 个入口，备份已保存到 Halofold 应用支持目录。")
+                .font(.system(size: 10.5))
+                .foregroundStyle(Color.islandMint.opacity(0.88))
+        }
     }
 
     private func sessionVisibilitySummary(_ report: SessionVisibilityReport) -> String {
