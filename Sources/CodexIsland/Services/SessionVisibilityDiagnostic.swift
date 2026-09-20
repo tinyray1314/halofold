@@ -70,7 +70,9 @@ final class SessionVisibilityDiagnostic: Sendable {
                 let rolloutPath = sqlite3_column_text(statement, 2).map { String(cString: $0) } ?? ""
                 let historyMode = sqlite3_column_text(statement, 3).map { String(cString: $0) } ?? ""
                 let hasUserEvent = sqlite3_column_int(statement, 4) != 0
-                let rolloutURL = URL(fileURLWithPath: rolloutPath, relativeTo: rolloutPath.hasPrefix("/") ? nil : codexDirectory)
+                let rolloutURL = rolloutPath.hasPrefix("/")
+                    ? URL(fileURLWithPath: rolloutPath)
+                    : codexDirectory.appendingPathComponent(rolloutPath)
                 threads.append(SessionVisibilityThread(
                     id: String(cString: idText),
                     isArchived: sqlite3_column_int(statement, 1) != 0,

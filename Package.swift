@@ -20,7 +20,7 @@ let package = Package(
         ),
         .testTarget(
             name: "CodexIslandTests",
-            dependencies: ["CodexIsland"],
+            dependencies: ["CodexIsland", "CSQLite"],
             path: "Tests/CodexIslandTests"
         )
     ],
