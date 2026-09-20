@@ -1,0 +1,66 @@
+<div id="halofold-review-mock">
+  <div class="nav nav-pills" role="tablist" aria-label="结构对照">
+    <button class="nav-link" id="halo-current-tab" type="button" role="tab" aria-selected="false" aria-controls="halo-current-panel">现状结构</button>
+    <button class="nav-link active" id="halo-proposed-tab" type="button" role="tab" aria-selected="true" aria-controls="halo-proposed-panel">建议结构</button>
+  </div>
+  <div id="halo-current-panel" role="tabpanel" aria-labelledby="halo-current-tab" hidden>
+    <div class="halo-caption">现状 · 空间入口随页面改变</div>
+    <div class="halo-window" id="halo-current" aria-label="现状界面结构示意"></div>
+  </div>
+  <div id="halo-proposed-panel" role="tabpanel" aria-labelledby="halo-proposed-tab">
+    <div class="halo-caption">建议 · 固定导航，待处理优先，切换保留草稿</div>
+    <div class="halo-window" id="halo-proposed" aria-label="建议界面结构示意"></div>
+  </div>
+  <div class="halo-caption">结构示意，非最终视觉稿 · 可点击活动、便签、日程切换</div>
+</div>
+<style>
+#halofold-review-mock{--halo-bg:light-dark(#f7f8f7,#0f1413);--halo-text:light-dark(#1d2723,#eff4f0);--halo-sub:light-dark(#54665c,#a4b2a9);--halo-line:light-dark(#d6dfd8,#303d35);--halo-field:light-dark(#ffffff,#1b241e);--halo-blue:light-dark(#1167a7,#60b8f6);--halo-soft:light-dark(#e5eff8,#192d3b);--halo-green:light-dark(#236641,#68c89b);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif}
+#halofold-review-mock .halo-caption{margin:12px 0;font-size:12px;color:var(--halo-sub)}
+#halofold-review-mock .halo-window{max-width:550px;margin:0 auto;background:var(--halo-bg);color:var(--halo-text);border:1px solid var(--halo-line);border-radius:22px;overflow:hidden;font-size:14px;line-height:1.6}
+#halofold-review-mock .halo-top{display:flex;align-items:center;gap:6px;padding:15px 18px;border-bottom:1px solid var(--halo-line);flex-wrap:wrap}
+#halofold-review-mock .halo-top strong{font-size:17px;font-weight:600;margin-right:auto}
+#halofold-review-mock .halo-static-icon{display:flex;align-items:center;padding:7px 8px;color:var(--halo-sub)}
+#halofold-review-mock .halo-top .halo-tools{margin-left:auto;display:flex;gap:4px}
+#halofold-review-mock button.halo-button{font:inherit;color:var(--halo-sub);background:transparent;border:1px solid transparent;border-radius:8px;padding:7px 11px;cursor:pointer;min-height:34px}
+#halofold-review-mock button.halo-button:hover{background:var(--halo-field);color:var(--halo-text)}
+#halofold-review-mock button.halo-button[aria-pressed=true]{background:var(--halo-soft);color:var(--halo-blue)}
+#halofold-review-mock button.halo-main{background:var(--halo-blue);color:var(--halo-bg);font-weight:500}
+#halofold-review-mock .halo-body{padding:16px 20px 20px;min-height:315px}
+#halofold-review-mock .halo-label{font-size:12px;color:var(--halo-sub);margin:12px 0 5px}
+#halofold-review-mock .halo-item{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--halo-line)}
+#halofold-review-mock .halo-item small{margin-left:auto;color:var(--halo-sub);font-size:12px;white-space:nowrap}
+#halofold-review-mock .halo-status{width:7px;height:7px;border-radius:50%;background:var(--halo-green);flex:none}
+#halofold-review-mock .halo-action{padding:12px 14px;background:var(--halo-soft);border-radius:10px;margin-bottom:14px}
+#halofold-review-mock .halo-action-title{font-weight:600;color:var(--halo-blue);margin-bottom:5px}
+#halofold-review-mock .halo-action-bottom{display:flex;align-items:center;justify-content:space-between;gap:10px}
+#halofold-review-mock .halo-bottom{padding:12px 20px;border-top:1px solid var(--halo-line);color:var(--halo-sub);font-size:12px}
+#halofold-review-mock .halo-body input,#halofold-review-mock .halo-body textarea{font:inherit;box-sizing:border-box;width:100%;color:var(--halo-text);background:var(--halo-field);border:1px solid var(--halo-line);border-radius:8px;padding:9px 11px;margin:6px 0 12px}
+#halofold-review-mock .halo-body textarea{resize:vertical;min-height:145px}
+#halofold-review-mock .halo-form-actions{display:flex;justify-content:space-between;align-items:center;margin-top:16px}
+#halofold-review-mock .halo-muted{color:var(--halo-sub);font-size:12px}
+#halofold-review-mock .halo-focus{display:flex;justify-content:space-between;gap:10px;padding:9px 20px;background:var(--halo-soft);font-size:12px;color:var(--halo-blue)}
+@media(max-width:400px){#halofold-review-mock .halo-top{padding:12px 10px;gap:1px}#halofold-review-mock button.halo-button{padding:7px 8px}#halofold-review-mock .halo-body{padding:12px 14px}#halofold-review-mock .halo-top strong{font-size:15px}#halofold-review-mock .halo-top .halo-tools{gap:0}}
+</style>
+<script>
+(()=>{
+const root=document.getElementById('halofold-review-mock');
+const labels={activity:'活动',notes:'便签',schedule:'日程'};
+const views={current:{space:'activity',draft:'',menu:false,detail:false},proposed:{space:'activity',draft:'',menu:false,detail:false}};
+const options={showFocus:false,showIcons:true};
+const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const icon=n=>`<i data-lucide="${n}" aria-hidden="true"></i>`;
+function navButton(key,state,newMode){return `<button class="halo-button" data-space="${key}" aria-pressed="${newMode&&state.space===key}">${labels[key]}</button>`}
+function content(state,newMode){
+ if(state.space==='settings')return `<div class="halo-label">设置 · 自动保存</div><div class="halo-item">功能</div><div class="halo-item">显示</div><div class="halo-item">语音</div><div class="halo-item">通用</div><div class="halo-form-actions"><button class="halo-button" data-back>返回${labels[state.previous||'activity']}</button></div>`;
+ if(state.space==='notes')return `<div class="halo-label">产品思路</div><textarea aria-label="演示便签" placeholder="快速记下想法…">统一导航的位置，让用户切换后不用重新找按钮。</textarea><div class="halo-muted">本地自动保存</div>`;
+ if(state.space==='schedule')return `<div class="halo-label">${newMode?'9 月 14 日 · 今天':'本周计划'}</div><div class="halo-item">添加日程</div><label>事项名称<input aria-label="演示日程草稿" data-draft placeholder="输入后切到便签，再切回来" value="${escape(state.draft)}"></label><div class="halo-item">开始时间 <small>${newMode?'今天 13:30':'09:00'}</small></div><div class="halo-item">持续时长 <small>45 分钟</small></div><div class="halo-form-actions"><button class="halo-button" data-clear>取消</button><span class="halo-muted">${newMode?'草稿在切换时保留':'未提交草稿'}</span></div>`;
+ const tasks=['优化数据导入性能','重构用户权限模块','修复移动端布局问题','设计系统组件更新'];
+ const rows=tasks.slice(0,newMode?2:4).map((s,i)=>`<div class="halo-item"><span class="halo-status"></span><span>${s}</span><small>${i?'21 分钟':'1 分钟'}</small></div>`).join('');
+ const action=newMode?`<div class="halo-action"><div class="halo-action-title">待你处理 · 1</div><div class="halo-action-bottom"><span>发布前账号确认</span><button class="halo-button" data-detail>${state.detail?'收起':'查看'}</button></div>${state.detail?'<div class="halo-muted">Codex 需要你登录账号 · 示意内容</div>':''}</div>`:'';
+ return action+`<div class="halo-label">运行中 · 8</div>${rows}<div class="halo-label">${newMode?'其余 6 项运行任务':'其余 4 项运行任务'}</div>${newMode?'':'<div class="halo-item">待你处理 · 1</div>'}<div class="halo-item">完成记录 · 2 <small>中断 · 1</small></div>`;
+}
+function renderOne(mode){const s=views[mode],n=mode==='proposed',target=root.querySelector('#halo-'+mode);const keys=n?['activity','notes','schedule']:['activity','schedule','notes'].filter(k=>k!==s.space);const gear=options.showIcons?icon('settings-2'):'设置';const close=options.showIcons?icon(n?'chevron-up':'power'):(n?'收起':'退出');target.innerHTML=`<div class="halo-top">${n?'':`<strong>${labels[s.space]||'设置'}</strong>`}${keys.map(k=>navButton(k,s,n)).join('')}<div class="halo-tools"><button class="halo-button" data-settings aria-label="${n||s.space==='activity'?'设置':'更多菜单'}">${n||s.space==='activity'?gear:'…'}</button><span class="halo-static-icon" aria-label="${n?'收起位置示意':'退出位置示意'}">${close}</span></div></div>${n&&options.showFocus?'<div class="halo-focus"><span>专注中 · 整理产品反馈</span><span>39:58</span></div>':''}${s.menu?'<div class="halo-bottom"><button class="halo-button" data-open-settings>打开设置</button></div>':''}<div class="halo-body">${content(s,n)}</div><div class="halo-bottom">${n?'状态、草稿和导航位置保持连续':'更新于 13:15 · 官方周用量'}</div>`;if(globalThis.lucide)lucide.createIcons({attrs:{width:16,height:16}})}
+for(const mode of ['current','proposed']){const target=root.querySelector('#halo-'+mode);target.addEventListener('input',e=>{if(e.target.matches('[data-draft]'))views[mode].draft=e.target.value});target.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const s=views[mode];if(b.dataset.space){if(mode==='current')s.draft='';s.space=b.dataset.space;s.menu=false}else if(b.hasAttribute('data-settings')){if(mode==='current'&&s.space!=='activity'){s.menu=!s.menu}else{s.previous=s.space;s.space='settings'}}else if(b.hasAttribute('data-open-settings')){s.previous=s.space;s.space='settings';s.menu=false}else if(b.hasAttribute('data-back')){s.space=s.previous||'activity'}else if(b.hasAttribute('data-clear')){s.draft=''}else if(b.hasAttribute('data-detail')){s.detail=!s.detail}else if(b.hasAttribute('data-close')){s.menu=false;s.space='activity'}renderOne(mode)});renderOne(mode)}
+if(globalThis.Tweak){const tweak=new Tweak({container:root.querySelector('#halo-proposed'),onChange:()=>renderOne('proposed')});tweak.addToggle(options,'showFocus',{label:'保留跨空间专注状态条'});tweak.addToggle(options,'showIcons',{label:'设置与收起使用图标'});}
+})();
+</script>

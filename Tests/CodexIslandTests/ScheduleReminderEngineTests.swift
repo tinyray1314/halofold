@@ -113,6 +113,64 @@ final class ScheduleReminderEngineTests: XCTestCase {
         XCTAssertTrue(tick(engine, at: date(hour: 11, minute: 21), routines: [hydration]).isEmpty)
     }
 
+    func testCustomDailyRoutineFiresAtTheSelectedTimeWithoutCatchUp() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let engine = ScheduleReminderEngine(calendar: calendar)
+        let lunch = ScheduleRoutine(
+            id: UUID(uuidString: "00000000-0000-0000-0000-000000000003")!,
+            kind: .custom,
+            title: "点外卖",
+            reminderStyle: .dailyTime,
+            dailyTimeMinutes: 11 * 60 + 30
+        )
+
+        XCTAssertTrue(tick(engine, at: date(hour: 11, minute: 29), routines: [lunch]).isEmpty)
+        XCTAssertEqual(tick(engine, at: date(hour: 11, minute: 30), routines: [lunch]), [
+            .routineReminder(ScheduleRoutineReminder(
+                routineID: lunch.id,
+                kind: .custom,
+                title: "点外卖",
+                remindedAt: date(hour: 11, minute: 30)
+            ))
+        ])
+        XCTAssertTrue(tick(engine, at: date(hour: 11, minute: 31), routines: [lunch]).isEmpty)
+
+        let restarted = ScheduleReminderEngine(calendar: calendar)
+        XCTAssertTrue(tick(restarted, at: date(hour: 11, minute: 31), routines: [lunch]).isEmpty)
+        XCTAssertTrue(tick(restarted, at: date(hour: 11, minute: 32), routines: [lunch]).isEmpty)
+    }
+
+    func testCustomDailyRoutineIsCombinedAfterFocusEnds() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let engine = ScheduleReminderEngine(calendar: calendar)
+        let lunch = ScheduleRoutine(
+            id: UUID(uuidString: "00000000-0000-0000-0000-000000000003")!,
+            kind: .custom,
+            title: "点外卖",
+            reminderStyle: .dailyTime,
+            dailyTimeMinutes: 11 * 60 + 30
+        )
+        var focus = occurrence(startingAt: date(hour: 11, minute: 0))
+        focus.status = .running
+
+        _ = tick(engine, at: date(hour: 11, minute: 29), occurrences: [focus], routines: [lunch])
+        XCTAssertTrue(tick(engine, at: date(hour: 11, minute: 30), occurrences: [focus], routines: [lunch]).isEmpty)
+
+        focus.status = .completed
+        XCTAssertEqual(tick(engine, at: date(hour: 11, minute: 31), occurrences: [focus], routines: [lunch]), [
+            .combinedRoutineReminder([
+                ScheduleRoutineReminder(
+                    routineID: lunch.id,
+                    kind: .custom,
+                    title: "点外卖",
+                    remindedAt: date(hour: 11, minute: 31)
+                )
+            ])
+        ])
+    }
+
     func testFocusDefersDueRoutinesAndReleasesOneCombinedReminderAtFocusEnd() {
         let engine = ScheduleReminderEngine(maximumContinuousTickGap: 60 * 60)
         let hydration = routine(kind: .hydration, intervalMinutes: 40)

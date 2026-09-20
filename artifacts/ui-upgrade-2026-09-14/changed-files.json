@@ -1,0 +1,12 @@
+[
+  "Sources/CodexIsland/UI/ScheduleWorkspaceView.swift",
+  "Sources/CodexIsland/UI/SettingsView.swift",
+  "Sources/CodexIsland/UI/NotesWorkspaceView.swift",
+  "Sources/CodexIsland/UI/IslandView.swift",
+  "Sources/CodexIsland/Core/NoteLibraryModel.swift",
+  "Sources/CodexIsland/Core/ScheduleLibraryModel.swift",
+  "Sources/CodexIsland/Core/ScheduleModels.swift",
+  "Sources/CodexIsland/Core/ApplicationModel.swift",
+  "Tests/CodexIslandTests/ScheduleLibraryTests.swift",
+  "Tests/CodexIslandTests/NoteLibraryTests.swift"
+]

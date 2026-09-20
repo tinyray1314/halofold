@@ -1,0 +1,532 @@
+{
+  "screens": [
+    {
+      "id": "collapsed-compact",
+      "number": "01",
+      "group": "顶部入口",
+      "title": "紧凑收起态",
+      "path": "设置 → 显示 → 紧凑；查看顶部状态条",
+      "note": "两侧原生视图组合；中间为占位区。未验证真实刘海与菜单栏重叠。",
+      "file": "screenshots/collapsed-compact.png",
+      "captured": true
+    },
+    {
+      "id": "collapsed-relaxed",
+      "number": "02",
+      "group": "顶部入口",
+      "title": "宽松收起态",
+      "path": "设置 → 显示 → 宽松",
+      "note": "同上。展示布局差异，不代表当前显示器上的真实位置。",
+      "file": "screenshots/collapsed-relaxed.png",
+      "captured": true
+    },
+    {
+      "id": "activity-main",
+      "number": "03",
+      "group": "活动",
+      "title": "运行任务较多",
+      "path": "展开 → 活动",
+      "note": "保留现有八条运行任务演示数据，查看首屏信息分配。",
+      "file": "screenshots/activity-main.png",
+      "captured": true
+    },
+    {
+      "id": "activity-summary",
+      "number": "04",
+      "group": "活动",
+      "title": "待处理与结果汇总",
+      "path": "活动 → 滚动至结果区",
+      "note": "使用无运行任务的数据，保证结果区和用量可见。",
+      "file": "screenshots/activity-summary.png",
+      "captured": true
+    },
+    {
+      "id": "activity-action",
+      "number": "05",
+      "group": "活动",
+      "title": "展开待你处理",
+      "path": "活动 → 待你处理",
+      "note": "登录文案为虚构演示内容。",
+      "file": "screenshots/activity-action.png",
+      "captured": true
+    },
+    {
+      "id": "activity-completed",
+      "number": "06",
+      "group": "活动",
+      "title": "展开完成记录",
+      "path": "活动 → 完成记录",
+      "note": "可观察未查看数量、全部已查看与记录层级。",
+      "file": "screenshots/activity-completed.png",
+      "captured": true
+    },
+    {
+      "id": "activity-paused",
+      "number": "07",
+      "group": "活动",
+      "title": "展开中断记录",
+      "path": "活动 → 中断",
+      "note": "演示中断原因与恢复入口。",
+      "file": "screenshots/activity-paused.png",
+      "captured": true
+    },
+    {
+      "id": "activity-empty",
+      "number": "08",
+      "group": "活动",
+      "title": "无跟踪对话",
+      "path": "没有可见任务 → 活动",
+      "note": "空任务列表与用量区域共存。",
+      "file": "screenshots/activity-empty.png",
+      "captured": true
+    },
+    {
+      "id": "activity-warning",
+      "number": "09",
+      "group": "活动",
+      "title": "数据来源异常",
+      "path": "数据读取异常 → 活动",
+      "note": "通过测试状态展示警告；没有真实断开连接。",
+      "file": "screenshots/activity-warning.png",
+      "captured": true
+    },
+    {
+      "id": "notes-main",
+      "number": "10",
+      "group": "便签",
+      "title": "富文本与多便签",
+      "path": "进入便签 → 选择内容",
+      "note": "使用仓库自带演示便签。",
+      "file": "screenshots/notes-main.png",
+      "captured": true
+    },
+    {
+      "id": "notes-new",
+      "number": "11",
+      "group": "便签",
+      "title": "新建空便签",
+      "path": "便签 → 新建",
+      "note": "观察标题输入、正文空白与底部格式工具。",
+      "file": "screenshots/notes-new.png",
+      "captured": true
+    },
+    {
+      "id": "notes-many",
+      "number": "12",
+      "group": "便签",
+      "title": "便签较多",
+      "path": "便签 → 连续新建多个",
+      "note": "检查横向标签溢出与新建按钮位置。",
+      "file": "screenshots/notes-many.png",
+      "captured": true
+    },
+    {
+      "id": "notes-menu",
+      "number": "13",
+      "group": "便签",
+      "title": "便签更多菜单",
+      "path": "便签 → …",
+      "note": "通过真实点击打开菜单。",
+      "file": "screenshots/notes-menu.png",
+      "captured": true
+    },
+    {
+      "id": "schedule-empty",
+      "number": "14",
+      "group": "计划",
+      "title": "本周计划为空",
+      "path": "我的日程 → 选择无计划日期",
+      "note": "空状态与添加入口。",
+      "file": "screenshots/schedule-empty.png",
+      "captured": true
+    },
+    {
+      "id": "schedule-main",
+      "number": "15",
+      "group": "计划",
+      "title": "本周计划列表",
+      "path": "我的日程 → 本周计划",
+      "note": "包含一次性计划与每周重复计划。",
+      "file": "screenshots/schedule-main.png",
+      "captured": true
+    },
+    {
+      "id": "schedule-new",
+      "number": "16",
+      "group": "计划",
+      "title": "添加计划",
+      "path": "本周计划 → 添加日程",
+      "note": "实际 beginAdding 动作初始化表单。",
+      "file": "screenshots/schedule-new.png",
+      "captured": true
+    },
+    {
+      "id": "schedule-new-filled",
+      "number": "17",
+      "group": "计划",
+      "title": "填写与更多设置",
+      "path": "添加日程 → 填写标题 → 更多设置",
+      "note": "检查重复设置、表单信息层级与提交位置。",
+      "file": "screenshots/schedule-new-filled.png",
+      "captured": true
+    },
+    {
+      "id": "schedule-edit",
+      "number": "18",
+      "group": "计划",
+      "title": "编辑已有计划",
+      "path": "计划行 → … → 编辑",
+      "note": "原生行内编辑表单。",
+      "file": "screenshots/schedule-edit.png",
+      "captured": true
+    },
+    {
+      "id": "schedule-completed",
+      "number": "19",
+      "group": "计划",
+      "title": "完成后的记录",
+      "path": "运行中 → 完成",
+      "note": "演示完成记录与实际时长。",
+      "file": "screenshots/schedule-completed.png",
+      "captured": true
+    },
+    {
+      "id": "schedule-routine",
+      "number": "20",
+      "group": "计划",
+      "title": "例行计划列表",
+      "path": "我的日程 → 例行计划",
+      "note": "内置喝水、活动与自定义每日提醒。",
+      "file": "screenshots/schedule-routine.png",
+      "captured": true
+    },
+    {
+      "id": "schedule-routine-new",
+      "number": "21",
+      "group": "计划",
+      "title": "例行事项编辑入口",
+      "path": "例行计划 → 添加事项",
+      "note": "首屏保留列表；表单下半部分需滚动。",
+      "file": "screenshots/schedule-routine-new.png",
+      "captured": true
+    },
+    {
+      "id": "schedule-routine-daily",
+      "number": "22",
+      "group": "计划",
+      "title": "每日定时表单入口",
+      "path": "添加事项 → 每日定时",
+      "note": "首屏位置；下半部分见补充截图。",
+      "file": "screenshots/schedule-routine-daily.png",
+      "captured": true
+    },
+    {
+      "id": "schedule-routine-edit",
+      "number": "23",
+      "group": "计划",
+      "title": "编辑例行事项入口",
+      "path": "自定义事项 → … → 编辑",
+      "note": "首屏位置；下半部分见补充截图。",
+      "file": "screenshots/schedule-routine-edit.png",
+      "captured": true
+    },
+    {
+      "id": "schedule-routine-form-bottom",
+      "number": "24",
+      "group": "计划",
+      "title": "例行表单下半部分",
+      "path": "添加事项 → 向下滚动",
+      "note": "实际滚动后采集，检查完整表单和提交按钮。",
+      "file": "screenshots/schedule-routine-form-bottom.png",
+      "captured": true
+    },
+    {
+      "id": "schedule-routine-daily-bottom",
+      "number": "25",
+      "group": "计划",
+      "title": "每日定时完整表单",
+      "path": "添加事项 → 每日定时 → 向下滚动",
+      "note": "真实切换提醒方式后采集；未保存到真实数据。",
+      "file": "screenshots/schedule-routine-daily-bottom.png",
+      "captured": true
+    },
+    {
+      "id": "schedule-awaiting",
+      "number": "26",
+      "group": "提醒",
+      "title": "到点等待开始",
+      "path": "计划到点 → 该开始了",
+      "note": "测试状态使用真实模型动作进入等待开始。",
+      "file": "screenshots/schedule-awaiting.png",
+      "captured": true
+    },
+    {
+      "id": "schedule-overdue",
+      "number": "27",
+      "group": "提醒",
+      "title": "错过开始时间",
+      "path": "等待开始 → 超时未处理",
+      "note": "可开始、延后、调整时间或取消。",
+      "file": "screenshots/schedule-overdue.png",
+      "captured": true
+    },
+    {
+      "id": "schedule-adjust",
+      "number": "28",
+      "group": "提醒",
+      "title": "调整时间弹窗",
+      "path": "错过开始时间 → 调整时间",
+      "note": "采集窗口中出现浅色底与浅色文字冲突，内容可读性异常；需在正式 NSPanel 窗口核实是否同样出现，暂不直接归因为产品缺陷。",
+      "file": "screenshots/schedule-adjust.png",
+      "captured": true
+    },
+    {
+      "id": "schedule-running",
+      "number": "29",
+      "group": "提醒",
+      "title": "专注倒计时",
+      "path": "提醒 → 现在开始",
+      "note": "显示完成、延长与稍后处理；倒计时为演示。",
+      "file": "screenshots/schedule-running.png",
+      "captured": true
+    },
+    {
+      "id": "settings-features",
+      "number": "30",
+      "group": "设置",
+      "title": "功能开关",
+      "path": "设置 → 功能",
+      "note": "一级功能与模块关系。",
+      "file": "screenshots/settings-features.png",
+      "captured": true
+    },
+    {
+      "id": "settings-display",
+      "number": "31",
+      "group": "设置",
+      "title": "显示与模块排序",
+      "path": "设置 → 显示",
+      "note": "收起态模式、模块开关与排序入口。",
+      "file": "screenshots/settings-display.png",
+      "captured": true
+    },
+    {
+      "id": "settings-voice",
+      "number": "32",
+      "group": "设置",
+      "title": "语音设置首屏",
+      "path": "设置 → 语音",
+      "note": "内容超过一屏，下部需继续滚动。",
+      "file": "screenshots/settings-voice.png",
+      "captured": true
+    },
+    {
+      "id": "settings-voice-bottom",
+      "number": "33",
+      "group": "设置",
+      "title": "语音设置下半部分",
+      "path": "设置 → 语音 → 向下滚动",
+      "note": "覆盖中断提醒、音色与音量。",
+      "file": "screenshots/settings-voice-bottom.png",
+      "captured": true
+    },
+    {
+      "id": "settings-general",
+      "number": "34",
+      "group": "设置",
+      "title": "通用设置首屏",
+      "path": "设置 → 通用",
+      "note": "授权、数据位置、用量来源与演示入口。",
+      "file": "screenshots/settings-general.png",
+      "captured": true
+    },
+    {
+      "id": "settings-general-bottom",
+      "number": "35",
+      "group": "设置",
+      "title": "通用设置下半部分",
+      "path": "设置 → 通用 → 向下滚动",
+      "note": "补齐隐私入口等底部内容。",
+      "file": "screenshots/settings-general-bottom.png",
+      "captured": true
+    },
+    {
+      "id": "settings-permission",
+      "number": "36",
+      "group": "设置",
+      "title": "未授权提示",
+      "path": "未获得目录权限 → 设置",
+      "note": "仅模拟未授权状态，没有打开或确认系统权限。",
+      "file": "screenshots/settings-permission.png",
+      "captured": true
+    },
+    {
+      "id": "settings-privacy",
+      "number": "37",
+      "group": "设置",
+      "title": "隐私说明弹窗",
+      "path": "设置 → 通用 → 隐私说明",
+      "note": "原生弹窗内容。",
+      "file": "screenshots/settings-privacy.png",
+      "captured": true
+    },
+    {
+      "id": "settings-funvoice",
+      "number": "38",
+      "group": "设置",
+      "title": "趣味音色编辑器",
+      "path": "设置 → 语音 → 使用趣味音色朗读文案",
+      "note": "只查看编辑器，不录音、不生成、不播放。",
+      "file": "screenshots/settings-funvoice.png",
+      "captured": true
+    },
+    {
+      "id": "quit-confirm",
+      "number": "39",
+      "group": "公共",
+      "title": "退出确认",
+      "path": "任一主界面 → 电源图标",
+      "note": "只采集确认对话框，不确认退出。",
+      "file": "screenshots/quit-confirm.png",
+      "captured": true
+    }
+  ],
+  "issues": [
+    {
+      "id": "G01",
+      "kind": "共性",
+      "title": "设置入口不一致",
+      "fact": "活动页是独立齿轮；便签和日程把设置藏在省略号菜单。",
+      "impact": "跨工作空间使用时，要重新寻找同一功能。",
+      "suggest": "统一设置位置、图标与点击层级。",
+      "shots": [
+        "activity-main",
+        "notes-main",
+        "schedule-main"
+      ],
+      "anchor": [
+        81,
+        15
+      ]
+    },
+    {
+      "id": "G02",
+      "kind": "共性",
+      "title": "工作空间切换缺少固定位置",
+      "fact": "各页只显示另外两个空间的入口，当前位置以标题显示；按钮大小、间距和样式也不同。",
+      "impact": "切换后入口顺序发生变化，难以形成稳定的位置记忆。",
+      "suggest": "优先比较固定顺序的三项导航方案，再决定是否更改。",
+      "shots": [
+        "activity-main",
+        "notes-main",
+        "schedule-main"
+      ],
+      "anchor": [
+        61,
+        15
+      ]
+    },
+    {
+      "id": "G03",
+      "kind": "共性",
+      "title": "蓝色同时表达跳转和当前选中",
+      "fact": "活动、便签中的日程跳转按钮使用蓝色；便签当前标签、本周计划选中项也使用蓝色。",
+      "impact": "同一种强调色同时代表目的地和当前位置，层级辨认可能变慢。",
+      "suggest": "区分导航选中、普通跳转与主要操作的视觉规则。",
+      "shots": [
+        "activity-main",
+        "notes-main",
+        "schedule-main"
+      ],
+      "anchor": [
+        61,
+        15
+      ]
+    },
+    {
+      "id": "G04",
+      "kind": "共性",
+      "title": "退出占据每个页面的高频操作区",
+      "fact": "电源图标反复出现在顶部右侧，紧邻导航与设置；点击后有二次确认。",
+      "impact": "低频动作持续占据空间，也可能被理解为收起面板。确认已降低直接误退风险。",
+      "suggest": "讨论是否将退出归入应用菜单，把顶部空间用于收起或导航。",
+      "shots": [
+        "activity-main",
+        "notes-main",
+        "schedule-main",
+        "settings-features"
+      ],
+      "anchor": [
+        88,
+        15
+      ]
+    },
+    {
+      "id": "L01",
+      "kind": "单点",
+      "title": "运行任务挤压待处理事项的可见性",
+      "fact": "八条运行任务的演示数据中，首屏看不到待你处理和完成汇总，代码将结果分组放在运行列表之后。",
+      "impact": "用户需要操作的提醒可能需要向下滚动才能发现。",
+      "suggest": "优先试验待处理摘要置顶，或限制运行任务在首屏所占高度。",
+      "shots": [
+        "activity-main",
+        "activity-action"
+      ],
+      "anchor": [
+        49,
+        53
+      ]
+    },
+    {
+      "id": "L02",
+      "kind": "单点",
+      "title": "计划提醒覆盖整个工作空间",
+      "fact": "等待开始、错过开始与运行状态覆盖整个内容区，顶部导航不可见。",
+      "impact": "专注感更强，但访问其他空间受限；实际退出和收起行为仍需在正式窗口验证。",
+      "suggest": "比较全覆盖与保留顶部导航两种方案，先确定专注时允许做什么。",
+      "shots": [
+        "schedule-awaiting",
+        "schedule-overdue",
+        "schedule-running"
+      ],
+      "anchor": [
+        49,
+        18
+      ]
+    },
+    {
+      "id": "L03",
+      "kind": "单点",
+      "title": "例行编辑表单出现在列表末尾",
+      "fact": "已有三条例行事项时，新建或编辑后表单只有开头落在首屏，提交按钮在下方。",
+      "impact": "用户可能没发现已进入编辑状态，需进一步滚动完成操作。",
+      "suggest": "尝试进入编辑后自动定位表单，或使用独立编辑区域。",
+      "shots": [
+        "schedule-routine-new",
+        "schedule-routine-edit",
+        "schedule-routine-form-bottom"
+      ],
+      "anchor": [
+        47,
+        86
+      ]
+    },
+    {
+      "id": "L04",
+      "kind": "单点",
+      "title": "设置页滚动内容缺少明显的续页提示",
+      "fact": "语音与通用设置在固定高度内滚动，首屏可见下一块内容被截断。",
+      "impact": "底部的音色、音量与隐私入口较容易被忽略；发现率需要用户测试确认。",
+      "suggest": "先调整分组和密度，再评估滚动提示；避免单纯扩大所有窗口。",
+      "shots": [
+        "settings-voice",
+        "settings-general",
+        "settings-voice-bottom"
+      ],
+      "anchor": [
+        49,
+        87
+      ]
+    }
+  ]
+}

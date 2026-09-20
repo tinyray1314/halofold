@@ -186,6 +186,31 @@ public final class ScheduleLibraryModel: ObservableObject {
         markChanged()
     }
 
+    /// Undo only the deleted occurrence; do not roll back other plans or timer updates.
+    func deleteOccurrenceWithUndo(_ id: String) -> (() -> Void)? {
+        guard let occurrence = resolvedOccurrence(id: id) else { return nil }
+        let original = snapshot.occurrences.first { $0.id == id }
+        delete(id)
+        return { [weak self] in
+            guard let self else { return }
+            self.snapshot.occurrences.removeAll { $0.id == id }
+            if let original { self.snapshot.occurrences.append(original) }
+            else if occurrence.templateID == nil { self.snapshot.occurrences.append(occurrence) }
+            self.markChanged()
+        }
+    }
+
+    func deleteRoutineWithUndo(_ id: UUID) -> (() -> Void)? {
+        guard let index = snapshot.routines.firstIndex(where: { $0.id == id && $0.kind == .custom }) else { return nil }
+        let routine = snapshot.routines[index]
+        guard deleteCustomRoutine(id) else { return nil }
+        return { [weak self] in
+            guard let self, !self.snapshot.routines.contains(where: { $0.id == id }) else { return }
+            self.snapshot.routines.insert(routine, at: min(index, self.snapshot.routines.count))
+            self.markChanged()
+        }
+    }
+
     public func markAwaitingStart(_ occurrenceID: String, now: Date = Date()) {
         mutateOccurrence(occurrenceID, now: now) { occurrence in
             guard occurrence.status == .planned else { return false }
@@ -309,6 +334,70 @@ public final class ScheduleLibraryModel: ObservableObject {
         if let isEnabled { snapshot.routines[index].isEnabled = isEnabled }
         snapshot.routines[index].updatedAt = now
         markChanged()
+    }
+
+    @discardableResult
+    public func addCustomRoutine(
+        title: String,
+        reminderStyle: ScheduleRoutineReminderStyle,
+        intervalMinutes: Int = 60,
+        dailyTimeMinutes: Int? = nil,
+        now: Date = Date()
+    ) -> ScheduleRoutine? {
+        let cleanedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanedTitle.isEmpty else { return nil }
+        let routine = ScheduleRoutine(
+            kind: .custom,
+            title: cleanedTitle,
+            reminderStyle: reminderStyle,
+            intervalMinutes: intervalMinutes,
+            dailyTimeMinutes: dailyTimeMinutes,
+            createdAt: now,
+            updatedAt: now
+        )
+        snapshot.routines.append(routine)
+        markChanged()
+        return routine
+    }
+
+    @discardableResult
+    public func updateCustomRoutine(
+        _ routineID: UUID,
+        title: String,
+        reminderStyle: ScheduleRoutineReminderStyle,
+        intervalMinutes: Int,
+        dailyTimeMinutes: Int?,
+        isEnabled: Bool? = nil,
+        now: Date = Date()
+    ) -> Bool {
+        let cleanedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanedTitle.isEmpty,
+              let index = snapshot.routines.firstIndex(where: { $0.id == routineID && $0.kind == .custom })
+        else { return false }
+
+        snapshot.routines[index].title = cleanedTitle
+        snapshot.routines[index].reminderStyle = reminderStyle
+        snapshot.routines[index].intervalMinutes = max(1, intervalMinutes)
+        snapshot.routines[index].dailyTimeMinutes = reminderStyle == .dailyTime
+            ? min(max(0, dailyTimeMinutes ?? (9 * 60)), (24 * 60) - 1)
+            : nil
+        if let isEnabled { snapshot.routines[index].isEnabled = isEnabled }
+        // A changed cadence starts fresh; it must not inherit the previous
+        // cadence's elapsed time and immediately surprise the user.
+        snapshot.routines[index].lastRemindedAt = now
+        snapshot.routines[index].updatedAt = now
+        markChanged()
+        return true
+    }
+
+    @discardableResult
+    public func deleteCustomRoutine(_ routineID: UUID) -> Bool {
+        guard let index = snapshot.routines.firstIndex(where: { $0.id == routineID && $0.kind == .custom }) else {
+            return false
+        }
+        snapshot.routines.remove(at: index)
+        markChanged()
+        return true
     }
 
     public func markRoutineReminded(_ kind: ScheduleRoutineKind, at date: Date = Date()) {

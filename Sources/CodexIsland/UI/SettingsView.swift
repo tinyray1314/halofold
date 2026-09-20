@@ -17,7 +17,7 @@ struct SettingsView: View {
             _selection = State(initialValue: .voice)
         } else if ProcessInfo.processInfo.arguments.contains("--general-settings-demo") {
             _selection = State(initialValue: .general)
-        } else if !model.hasCodexFolderAccess {
+        } else if model.sourceHasWarning || !model.hasCodexFolderAccess {
             _selection = State(initialValue: .general)
         }
     }
@@ -75,17 +75,13 @@ struct SettingsView: View {
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(.white.opacity(0.72))
-                .accessibilityLabel("返回任务面板")
+                .accessibilityLabel("返回工作空间")
 
                 Spacer()
 
-                QuitApplicationButton()
-
-                Button("完成", action: model.finishSettings)
-                    .buttonStyle(.plain)
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.88))
-                    .frame(width: 52, height: 34, alignment: .trailing)
+                Text("自动保存")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.white.opacity(0.6))
             }
         }
         .padding(.horizontal, 22)
@@ -410,15 +406,16 @@ private struct VoiceIslandSettings: View {
     @ObservedObject var model: ApplicationModel
     @ObservedObject var settings: AppSettings
     @Binding var feedback: String?
+    @State private var expandedVoice: AlertKind?
     @State private var funVoiceTarget: FunVoiceTarget?
 
     var body: some View {
         ScrollView {
             VStack(spacing: 12) {
+                voiceAndVolume
                 actionRequiredBlock
                 voiceBlock(kind: .completed, title: AppLocalization.text("任务完成"), tint: .islandGreen)
                 voiceBlock(kind: .paused, title: AppLocalization.text("任务中断"), tint: .islandAmber)
-                voiceAndVolume
             }
             .padding(.horizontal, 22)
             .padding(.bottom, 16)
@@ -501,6 +498,20 @@ private struct VoiceIslandSettings: View {
                 IslandSwitch(isOn: enabled)
             }
 
+            HStack {
+                Button {
+                    expandedVoice = expandedVoice == kind ? nil : kind
+                } label: {
+                    Label(expandedVoice == kind ? "收起提醒设置" : "编辑提醒内容", systemImage: expandedVoice == kind ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 12, weight: .medium))
+                }
+                .buttonStyle(.plain).foregroundStyle(.white.opacity(0.72))
+                .disabled(model.recordingAlertKind != nil)
+                Spacer()
+                if expandedVoice != kind { previewButton(kind: kind, title: title) }
+            }
+
+            if expandedVoice == kind {
             sourceSelector(kind: kind, title: title, mode: mode)
 
             if model.recordingAlertKind == kind {
@@ -522,6 +533,7 @@ private struct VoiceIslandSettings: View {
             .buttonStyle(.plain)
             .foregroundStyle(.white.opacity(0.58))
             .disabled(model.recordingAlertKind != nil)
+            }
         }
         .padding(12)
         .background(Color.white.opacity(0.055), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
@@ -1210,6 +1222,13 @@ private struct GeneralIslandSettings: View {
                 .controlSize(.small)
                 }
                 Divider().overlay(Color.white.opacity(0.1)).padding(.horizontal, 18)
+                settingsRow(icon: "hand.raised", title: AppLocalization.text("隐私政策")) {
+                Button("查看", action: showPrivacyPolicy)
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                }
+                Divider().overlay(Color.white.opacity(0.1)).padding(.horizontal, 18)
+                DisclosureGroup("数据与演示") {
                 infoRow(icon: "folder", title: AppLocalization.text("本地数据"), value: "Application Support")
                 Divider().overlay(Color.white.opacity(0.1)).padding(.horizontal, 18)
                 infoRow(
@@ -1232,11 +1251,9 @@ private struct GeneralIslandSettings: View {
                 .controlSize(.small)
                 }
                 Divider().overlay(Color.white.opacity(0.1)).padding(.horizontal, 18)
-                settingsRow(icon: "hand.raised", title: AppLocalization.text("隐私政策")) {
-                Button("查看", action: showPrivacyPolicy)
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
                 }
+                .font(.system(size: 13, weight: .medium))
+                .padding(18)
             }
             .background(
                 RoundedRectangle(cornerRadius: 15, style: .continuous)

@@ -79,7 +79,8 @@ struct RichNoteEditor: NSViewRepresentable {
             context.coordinator.documentID = documentID
             context.coordinator.lastAppliedData = rtfData
         } else if context.coordinator.lastAppliedData != rtfData,
-                  !context.coordinator.isEditing {
+                  !context.coordinator.hasPendingEdit,
+                  (!context.coordinator.isEditing || textView.window?.firstResponder !== textView || textView.window?.isVisible != true) {
             context.coordinator.isApplyingExternalChange = true
             let selection = textView.selectedRange()
             textView.textStorage?.setAttributedString(NoteContent.attributedString(from: rtfData))
@@ -115,6 +116,7 @@ struct RichNoteEditor: NSViewRepresentable {
         var isApplyingExternalChange = false
         var isEditing = false
         private var emitWorkItem: DispatchWorkItem?
+        var hasPendingEdit = false
 
         init(parent: RichNoteEditor) {
             self.parent = parent
@@ -134,6 +136,7 @@ struct RichNoteEditor: NSViewRepresentable {
             guard !isApplyingExternalChange,
                   let textView = notification.object as? NSTextView
             else { return }
+            hasPendingEdit = true
             scheduleEmit(textView)
         }
 
@@ -199,6 +202,8 @@ struct RichNoteEditor: NSViewRepresentable {
         }
 
         private func emit(_ textView: NSTextView) {
+            guard hasPendingEdit else { return }
+            hasPendingEdit = false
             let data = NoteContent.rtf(from: textView.attributedString())
             lastAppliedData = data
             parent.onChange(data)

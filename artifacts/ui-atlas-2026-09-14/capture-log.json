@@ -1,0 +1,302 @@
+[
+  {
+    "scenario": "activity-main",
+    "windowID": 90190,
+    "height": 474,
+    "width": 534,
+    "file": "screenshots/activity-main.png",
+    "status": "captured"
+  },
+  {
+    "height": 474,
+    "width": 534,
+    "scenario": "notes-main",
+    "windowID": 89590,
+    "file": "screenshots/notes-main.png",
+    "status": "captured"
+  },
+  {
+    "scenario": "activity-paused",
+    "width": 534,
+    "height": 474,
+    "windowID": 90216,
+    "file": "screenshots/activity-paused.png",
+    "status": "captured"
+  },
+  {
+    "windowID": 90222,
+    "width": 534,
+    "scenario": "activity-empty",
+    "height": 474,
+    "file": "screenshots/activity-empty.png",
+    "status": "captured"
+  },
+  {
+    "scenario": "activity-warning",
+    "height": 474,
+    "windowID": 90228,
+    "width": 534,
+    "file": "screenshots/activity-warning.png",
+    "status": "captured"
+  },
+  {
+    "width": 534,
+    "windowID": 89667,
+    "scenario": "notes-new",
+    "height": 474,
+    "file": "screenshots/notes-new.png",
+    "status": "captured"
+  },
+  {
+    "height": 474,
+    "scenario": "notes-many",
+    "windowID": 89674,
+    "width": 534,
+    "file": "screenshots/notes-many.png",
+    "status": "captured"
+  },
+  {
+    "height": 474,
+    "windowID": 89682,
+    "width": 534,
+    "scenario": "schedule-empty",
+    "file": "screenshots/schedule-empty.png",
+    "status": "captured"
+  },
+  {
+    "scenario": "schedule-main",
+    "width": 534,
+    "height": 474,
+    "windowID": 89688,
+    "file": "screenshots/schedule-main.png",
+    "status": "captured"
+  },
+  {
+    "scenario": "schedule-new",
+    "height": 474,
+    "windowID": 89696,
+    "width": 534,
+    "file": "screenshots/schedule-new.png",
+    "status": "captured"
+  },
+  {
+    "height": 474,
+    "scenario": "schedule-new-filled",
+    "width": 534,
+    "windowID": 89702,
+    "file": "screenshots/schedule-new-filled.png",
+    "status": "captured"
+  },
+  {
+    "width": 534,
+    "height": 474,
+    "windowID": 89708,
+    "scenario": "schedule-edit",
+    "file": "screenshots/schedule-edit.png",
+    "status": "captured"
+  },
+  {
+    "width": 534,
+    "height": 474,
+    "scenario": "schedule-awaiting",
+    "windowID": 89714,
+    "file": "screenshots/schedule-awaiting.png",
+    "status": "captured"
+  },
+  {
+    "scenario": "schedule-overdue",
+    "windowID": 90014,
+    "width": 534,
+    "height": 474,
+    "file": "screenshots/schedule-overdue.png",
+    "status": "captured"
+  },
+  {
+    "scenario": "schedule-running",
+    "height": 474,
+    "windowID": 89728,
+    "width": 534,
+    "file": "screenshots/schedule-running.png",
+    "status": "captured"
+  },
+  {
+    "height": 474,
+    "scenario": "schedule-completed",
+    "width": 534,
+    "windowID": 89736,
+    "file": "screenshots/schedule-completed.png",
+    "status": "captured"
+  },
+  {
+    "scenario": "schedule-routine",
+    "height": 474,
+    "windowID": 89742,
+    "width": 534,
+    "file": "screenshots/schedule-routine.png",
+    "status": "captured"
+  },
+  {
+    "windowID": 89750,
+    "scenario": "schedule-routine-new",
+    "height": 474,
+    "width": 534,
+    "file": "screenshots/schedule-routine-new.png",
+    "status": "captured"
+  },
+  {
+    "height": 474,
+    "windowID": 89756,
+    "scenario": "schedule-routine-daily",
+    "width": 534,
+    "file": "screenshots/schedule-routine-daily.png",
+    "status": "captured"
+  },
+  {
+    "width": 534,
+    "scenario": "schedule-routine-edit",
+    "height": 474,
+    "windowID": 89766,
+    "file": "screenshots/schedule-routine-edit.png",
+    "status": "captured"
+  },
+  {
+    "height": 506,
+    "scenario": "settings-features",
+    "width": 534,
+    "windowID": 89792,
+    "file": "screenshots/settings-features.png",
+    "status": "captured"
+  },
+  {
+    "windowID": 89815,
+    "width": 534,
+    "scenario": "settings-display",
+    "height": 506,
+    "file": "screenshots/settings-display.png",
+    "status": "captured"
+  },
+  {
+    "windowID": 89839,
+    "scenario": "settings-voice",
+    "width": 534,
+    "height": 506,
+    "file": "screenshots/settings-voice.png",
+    "status": "captured"
+  },
+  {
+    "width": 534,
+    "windowID": 89846,
+    "height": 506,
+    "scenario": "settings-general",
+    "file": "screenshots/settings-general.png",
+    "status": "captured"
+  },
+  {
+    "width": 534,
+    "height": 506,
+    "scenario": "settings-permission",
+    "windowID": 89870,
+    "file": "screenshots/settings-permission.png",
+    "status": "captured"
+  },
+  {
+    "width": 536,
+    "scenario": "collapsed-compact",
+    "height": 56,
+    "windowID": 89894,
+    "file": "screenshots/collapsed-compact.png",
+    "status": "captured"
+  },
+  {
+    "windowID": 89900,
+    "width": 605,
+    "height": 56,
+    "scenario": "collapsed-relaxed",
+    "file": "screenshots/collapsed-relaxed.png",
+    "status": "captured"
+  },
+  {
+    "height": 474,
+    "windowID": 90210,
+    "scenario": "activity-completed",
+    "width": 534,
+    "file": "screenshots/activity-completed.png",
+    "status": "captured"
+  },
+  {
+    "scenario": "activity-action",
+    "windowID": 90204,
+    "width": 534,
+    "height": 474,
+    "file": "screenshots/activity-action.png",
+    "status": "captured"
+  },
+  {
+    "height": 474,
+    "width": 534,
+    "windowID": 90198,
+    "scenario": "activity-summary",
+    "file": "screenshots/activity-summary.png",
+    "status": "captured"
+  },
+  {
+    "scenario": "schedule-adjust",
+    "width": 534,
+    "windowID": 90021,
+    "height": 474,
+    "file": "screenshots/schedule-adjust.png",
+    "status": "captured"
+  },
+  {
+    "windowID": 90028,
+    "width": 534,
+    "scenario": "settings-privacy",
+    "height": 506,
+    "file": "screenshots/settings-privacy.png",
+    "status": "captured"
+  },
+  {
+    "height": 506,
+    "scenario": "settings-funvoice",
+    "windowID": 90035,
+    "width": 534,
+    "file": "screenshots/settings-funvoice.png",
+    "status": "captured"
+  },
+  {
+    "scenario": "settings-general-bottom",
+    "file": "screenshots/settings-general-bottom.png",
+    "status": "captured",
+    "method": "CUA native click or scroll; screenshot helper; window 90097"
+  },
+  {
+    "scenario": "quit-confirm",
+    "file": "screenshots/quit-confirm.png",
+    "status": "captured",
+    "method": "CUA native click or scroll; screenshot helper; window 90097"
+  },
+  {
+    "scenario": "settings-voice-bottom",
+    "file": "screenshots/settings-voice-bottom.png",
+    "status": "captured",
+    "method": "CUA native click or scroll; screenshot helper; window 90097"
+  },
+  {
+    "scenario": "notes-menu",
+    "file": "screenshots/notes-menu.png",
+    "status": "captured",
+    "method": "CUA native click or scroll; screenshot helper; window 90097"
+  },
+  {
+    "scenario": "schedule-routine-form-bottom",
+    "file": "screenshots/schedule-routine-form-bottom.png",
+    "status": "captured",
+    "method": "CUA native click or scroll; screenshot helper; window 90097"
+  },
+  {
+    "scenario": "schedule-routine-daily-bottom",
+    "file": "screenshots/schedule-routine-daily-bottom.png",
+    "status": "captured",
+    "method": "CUA native click or scroll; screenshot helper; window 90097"
+  }
+]

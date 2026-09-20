@@ -110,6 +110,27 @@ final class NoteLibraryModel: ObservableObject {
         scheduleSave()
     }
 
+    /// Restore the original document, including its ID and formatted content.
+    func deleteWithUndo(_ id: UUID) -> (() -> Void)? {
+        guard let index = notes.firstIndex(where: { $0.id == id }) else { return nil }
+        let deleted = notes[index]
+        let wasLast = notes.count == 1
+        delete(id)
+        let replacement = wasLast ? notes.first : nil
+        return { [weak self] in
+            guard let self, !self.notes.contains(where: { $0.id == deleted.id }) else { return }
+            // Keep a replacement note if the user has already edited it.
+            if let replacement, let replacementIndex = self.notes.firstIndex(of: replacement) {
+                self.notes.remove(at: replacementIndex)
+                self.removedNoteIDs.insert(replacement.id)
+            }
+            self.removedNoteIDs.remove(deleted.id)
+            self.notes.insert(deleted, at: min(index, self.notes.count))
+            self.selectedNoteID = deleted.id
+            self.scheduleSave()
+        }
+    }
+
     func flush() {
         guard hasUnsavedChanges else { return }
         saveWorkItem?.cancel()

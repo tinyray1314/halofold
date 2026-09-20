@@ -21,8 +21,53 @@ final class ApplicationModel: ObservableObject {
     @Published private(set) var isPresentingSystemPermissionPrompt = false
     @Published var isExpanded = false
     @Published var isShowingSettings = false
+    @Published var isNotesEditorPresented = false
     @Published var expandedWorkspace: ExpandedWorkspace = .activity {
         didSet { UserDefaults.standard.set(expandedWorkspace.rawValue, forKey: "expandedWorkspace.v1") }
+    }
+
+    struct UndoNotice: Identifiable {
+        let id = UUID()
+        let message: String
+        let restore: () -> Void
+    }
+    @Published private(set) var undoNotice: UndoNotice?
+    private var undoDismissWorkItem: DispatchWorkItem?
+    @Published var isShowingFocusDetail = false
+
+    func offerUndo(_ message: String, restore: @escaping () -> Void) {
+        undoDismissWorkItem?.cancel()
+        let notice = UndoNotice(message: message, restore: restore)
+        undoNotice = notice
+        let item = DispatchWorkItem { [weak self] in
+            guard self?.undoNotice?.id == notice.id else { return }
+            self?.undoNotice = nil
+        }
+        undoDismissWorkItem = item
+        DispatchQueue.main.asyncAfter(deadline: .now() + 8, execute: item)
+    }
+
+    func undoLastDeletion() {
+        guard let notice = undoNotice else { return }
+        undoDismissWorkItem?.cancel()
+        undoNotice = nil
+        notice.restore()
+    }
+
+    var sourceStatusText: String {
+        if sourceHasWarning { return sourceMessage }
+        guard let date = usage.updatedAt else { return sourceMessage }
+        return AppLocalization.format("更新于 %@ · %@", date.formatted(date: .omitted, time: .shortened),
+            AppLocalization.text(usage.source == .official ? "官方周用量" : "官方用量 · 本机同步"))
+    }
+
+    var sourceRecoveryTitle: String {
+        AppLocalization.text(sourceHealth == .usageWarning ? "重试" : "检查设置")
+    }
+
+    func recoverSource() {
+        if sourceHealth == .usageWarning { refreshOfficialUsage() }
+        else { showSettings() }
     }
 
     let settings: AppSettings
@@ -177,12 +222,12 @@ final class ApplicationModel: ObservableObject {
                 showScheduleWorkspace()
             case let .routineReminder(reminder):
                 schedule.markRoutineReminded(reminder.routineID, at: reminder.remindedAt)
-                audioNotifier.speak(routineReminderText(for: reminder.kind))
+                audioNotifier.speak(routineReminderText(for: reminder))
             case let .combinedRoutineReminder(reminders):
                 for reminder in reminders {
                     schedule.markRoutineReminded(reminder.routineID, at: reminder.remindedAt)
                 }
-                audioNotifier.speak(combinedRoutineReminderText(for: reminders.map(\.kind)))
+                audioNotifier.speak(combinedRoutineReminderText(for: reminders))
             }
         }
     }
@@ -191,19 +236,23 @@ final class ApplicationModel: ObservableObject {
         Self.scheduleTimeFormatter.string(from: date)
     }
 
-    private func routineReminderText(for kind: ScheduleRoutineKind) -> String {
-        switch kind {
+    private func routineReminderText(for reminder: ScheduleRoutineReminder) -> String {
+        switch reminder.kind {
         case .hydration: return "提醒你喝点水"
         case .activity: return "提醒你起来活动一下"
+        case .custom: return "提醒你" + reminder.title
         }
     }
 
-    private func combinedRoutineReminderText(for kinds: [ScheduleRoutineKind]) -> String {
-        let uniqueKinds = Set(kinds)
-        if uniqueKinds.contains(.hydration), uniqueKinds.contains(.activity) {
-            return "提醒你喝水，也起来活动一下"
+    private func combinedRoutineReminderText(for reminders: [ScheduleRoutineReminder]) -> String {
+        let phrases = reminders.map { reminder -> String in
+            switch reminder.kind {
+            case .hydration: return "喝水"
+            case .activity: return "起来活动一下"
+            case .custom: return reminder.title
+            }
         }
-        return uniqueKinds.contains(.hydration) ? routineReminderText(for: .hydration) : routineReminderText(for: .activity)
+        return "提醒你" + phrases.joined(separator: "，")
     }
 
     private func handleFeatureSettingsChanged() {
@@ -243,6 +292,7 @@ final class ApplicationModel: ObservableObject {
 
     private func isWorkspaceEnabled(_ workspace: ExpandedWorkspace) -> Bool {
         switch workspace {
+        case .now: return settings.hasEnabledFeatures
         case .notes: return settings.isEnabled(.quickNotes)
         case .activity: return settings.isEnabled(.codexFollowUp)
         case .schedule: return settings.isEnabled(.schedule)
@@ -277,7 +327,37 @@ final class ApplicationModel: ObservableObject {
         saveNow()
     }
 
+    func showQuickPanel() {
+        NSApp.keyWindow?.makeFirstResponder(nil)
+        notes.flush()
+        isShowingSettings = false
+        isNotesEditorPresented = false
+        expandedWorkspace = .now
+        isExpanded = true
+    }
+
+    func expandNoteEditor() {
+        guard settings.isEnabled(.quickNotes) else { return }
+        NSApp.keyWindow?.makeFirstResponder(nil)
+        notes.flush()
+        isExpanded = false
+        isNotesEditorPresented = true
+    }
+
+    func returnToQuickPanel() {
+        NSApp.keyWindow?.makeFirstResponder(nil)
+        notes.flush()
+        isNotesEditorPresented = false
+        showQuickPanel()
+    }
+
     func toggleExpanded() {
+        NSApp.keyWindow?.makeFirstResponder(nil)
+        notes.flush()
+        if !isExpanded {
+            showQuickPanel()
+            return
+        }
         if isShowingSettings {
             isShowingSettings = false
             isExpanded = false
@@ -297,6 +377,7 @@ final class ApplicationModel: ObservableObject {
             return
         }
         isShowingSettings = false
+        isShowingFocusDetail = false
         expandedWorkspace = .notes
         isExpanded = true
         if createNew { _ = notes.createNote() }
@@ -308,6 +389,7 @@ final class ApplicationModel: ObservableObject {
             return
         }
         isShowingSettings = false
+        isShowingFocusDetail = false
         expandedWorkspace = .activity
         isExpanded = true
     }
@@ -318,6 +400,7 @@ final class ApplicationModel: ObservableObject {
             return
         }
         isShowingSettings = false
+        isShowingFocusDetail = false
         expandedWorkspace = .schedule
         isExpanded = true
     }

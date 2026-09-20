@@ -1,0 +1,20 @@
+{
+  "files": {
+    "Core/Models.swift": "12fd0907b15e30406d86da434304b8f46b6c7ca0b60bde8df3ad8e2067697101",
+    "Core/ApplicationModel.swift": "33318eaa5eba077bbc72557220e5ed7a378bf47e1d0cf4b062185590be1300fb",
+    "UI/IslandView.swift": "ce609796d410bbac9de2cba6265fd04087a53079b98397ce44ffec7c4ab0d49c",
+    "UI/IslandWindowController.swift": "5e463952f2731a194fb1d4c4cbd33a1a17c348bf89cbaa219f0765da33f0d909",
+    "UI/NotesWorkspaceView.swift": "21d910bb8187d5985bc93f55c1ed524a70a769b2a4c9630117fa311763348cb6",
+    "UI/RichNoteEditor.swift": "22be17d70b6b8bb422e8d0d33f5959528fca9fc4b4362ec893f8290f32631aae",
+    "UI/QuickAssistantView.swift": "a07b2790b4ff7b195c48068d1f7a4eaa95ab201c6e26e633c8cc14a0d54ef12f",
+    "UI/NoteEditorWindowController.swift": "eb3b7bbe09d8134d594c1bc22e726e17cb8694cd2a90fa569bdbf996a60afe53"
+  },
+  "capture": "Native production IslandWindowController and NoteEditorWindowController; only AppDelegate replaced with isolated fixture host",
+  "dataRoot": "/tmp/halofold-assistant-check/data2",
+  "bundleIdentifier": "local.halofold.assistant-check",
+  "package": "dist/Halofold.app",
+  "tests": {
+    "full": 73,
+    "formal": 70
+  }
+}

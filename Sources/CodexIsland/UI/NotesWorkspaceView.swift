@@ -3,6 +3,8 @@ import SwiftUI
 struct NotesWorkspaceView: View {
     @ObservedObject var model: ApplicationModel
     @ObservedObject var notes: NoteLibraryModel
+    let spacious: Bool
+    @State private var searchText = ""
     @FocusState private var titleFocused: Bool
     @State private var editorCommand: RichTextCommand?
     @State private var editorFocusRequestID: UUID?
@@ -15,28 +17,33 @@ struct NotesWorkspaceView: View {
     private let todoImportStore = CodexTodoImportStore()
 #endif
 
-    init(model: ApplicationModel) {
+    init(model: ApplicationModel, spacious: Bool = false) {
+        self.spacious = spacious
         self.model = model
         _notes = ObservedObject(wrappedValue: model.notes)
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            header
-            noteTabs
-            Divider().overlay(Color.white.opacity(0.1))
-
-            if let note = notes.selectedNote {
-                editor(for: note)
-                    .id(note.id)
-                    .transition(.opacity.combined(with: .move(edge: .trailing)))
+        HStack(spacing: 0) {
+            if spacious { noteSidebar }
+            VStack(alignment: .leading, spacing: 0) {
+                if !spacious {
+                    noteTabs
+                    Divider().overlay(Color.white.opacity(0.1))
+                }
+                if let note = notes.selectedNote {
+                    editor(for: note).id(note.id)
+                }
             }
         }
-        .frame(width: ExpandedIslandLayout.panelWidth, height: ExpandedIslandLayout.workspaceHeight)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .foregroundStyle(.white)
-        .background(panelBackground)
+
         .environment(\.colorScheme, .dark)
         .animation(.easeOut(duration: 0.16), value: notes.selectedNoteID)
+        .onReceive(NotificationCenter.default.publisher(for: .focusExpandedNoteBody)) { _ in
+            if spacious { editorFocusRequestID = UUID() }
+        }
         .onReceive(NotificationCenter.default.publisher(for: .focusNewNoteTitle)) { _ in
             titleFocused = true
         }
@@ -53,95 +60,38 @@ struct NotesWorkspaceView: View {
 #endif
     }
 
-    private var header: some View {
-        HStack(spacing: 10) {
-            Text(AppLocalization.text("便签"))
-                .font(.system(size: 17, weight: .semibold))
-            Spacer()
-#if !HALOFOLD_NO_CODEX_TODO
-            Button(action: discoverTodos) {
-                HStack(spacing: 6) {
-                    if isDiscoveringTodos {
-                        ProgressView().controlSize(.small)
-                    } else {
-                        Image(systemName: "sparkles")
+    private var noteSidebar: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("便签").font(.system(size: 13, weight: .semibold))
+                Spacer()
+                Button(action: createNote) { Image(systemName: "plus").frame(width: 32, height: 32).contentShape(Rectangle()) }
+                    .buttonStyle(.plain).help("新建便签").accessibilityLabel("新建便签")
+            }
+            TextField("查找便签", text: $searchText).textFieldStyle(.roundedBorder)
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 5) {
+                    ForEach(notes.notes.filter { searchText.isEmpty || $0.displayTitle.localizedCaseInsensitiveContains(searchText) }) { note in
+                        Button {
+                            NSApp.keyWindow?.makeFirstResponder(nil)
+                            notes.select(note)
+                        } label: {
+                            VStack(alignment: .leading, spacing: 5) {
+                                Text(note.displayTitle).font(.system(size: 12, weight: .medium)).lineLimit(2)
+                                Text(note.updatedAt, style: .date).font(.system(size: 10)).foregroundStyle(.white.opacity(0.4))
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading).padding(11)
+                            .background(notes.selectedNoteID == note.id ? Color.islandMint.opacity(0.1) : .clear, in: RoundedRectangle(cornerRadius: 9))
+                            .contentShape(Rectangle())
+                        }.buttonStyle(.plain)
+                        .accessibilityAddTraits(notes.selectedNoteID == note.id ? .isSelected : [])
                     }
-                    Text(AppLocalization.text("发现待办"))
                 }
-                .font(.system(size: 12.5, weight: .medium))
-                .padding(.horizontal, 10)
-                .frame(height: 34)
-                .background(Color.islandBlue.opacity(0.11), in: Capsule())
-                .overlay(Capsule().stroke(Color.islandBlue.opacity(0.38), lineWidth: 1))
             }
-            .buttonStyle(.plain)
-            .disabled(isDiscoveringTodos)
-            .help(AppLocalization.text("从最近 Codex 对话中提取待办候选"))
-#endif
-
-            if model.settings.isEnabled(.schedule) {
-                Button {
-                    model.showScheduleWorkspace()
-                } label: {
-                    Label(AppLocalization.text("日程"), systemImage: "clock")
-                        .font(.system(size: 13.5, weight: .medium))
-                        .padding(.horizontal, 12)
-                        .frame(height: 34)
-                        .background(Color.islandBlue.opacity(0.1), in: Capsule())
-                        .overlay(Capsule().stroke(Color.islandBlue.opacity(0.28), lineWidth: 1))
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(Color.islandBlue)
-                .accessibilityLabel(AppLocalization.text("打开我的日程"))
-            }
-
-            if model.settings.isEnabled(.codexFollowUp) {
-                Button {
-                    model.showActivityWorkspace()
-                } label: {
-                    HStack(spacing: 7) {
-                        Text(AppLocalization.text("活动"))
-                        if activityCount > 0 {
-                            Text("\(activityCount)")
-                                .font(.system(size: 10.5, weight: .semibold))
-                                .padding(.horizontal, 7)
-                                .frame(height: 20)
-                                .background(Color.white.opacity(0.11), in: Capsule())
-                        }
-                    }
-                    .font(.system(size: 13.5, weight: .medium))
-                    .padding(.horizontal, 12)
-                    .frame(height: 34)
-                    .background(Color.white.opacity(0.055), in: Capsule())
-                    .overlay(Capsule().stroke(Color.white.opacity(0.1), lineWidth: 1))
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(AppLocalization.format("打开活动，共 %lld 项", Int64(activityCount)))
-            }
-
-            Menu {
-                Button(AppLocalization.text("删除当前便签"), role: .destructive) {
-                    if let id = notes.selectedNoteID { notes.delete(id) }
-                }
-                Divider()
-                Button(AppLocalization.text("打开设置")) { model.showSettings() }
-            } label: {
-                Image(systemName: "ellipsis")
-                    .font(.system(size: 15, weight: .semibold))
-                    .frame(width: 34, height: 34)
-                    .background(Color.white.opacity(0.055), in: Circle())
-                    .overlay(Circle().stroke(Color.white.opacity(0.1), lineWidth: 1))
-            }
-            .menuStyle(.borderlessButton)
-            .menuIndicator(.hidden)
-            .fixedSize()
-            .accessibilityLabel(AppLocalization.text("便签菜单"))
-
-            QuitApplicationButton()
         }
-        .padding(.horizontal, 18)
-        .padding(.top, 15)
-        .padding(.bottom, 12)
+        .padding(15).frame(width: 190)
+        .frame(maxHeight: .infinity)
+        .background(Color.white.opacity(0.02))
     }
 
     private var noteTabs: some View {
@@ -172,6 +122,7 @@ struct NotesWorkspaceView: View {
     private func noteTab(_ note: NoteDocument) -> some View {
         let selected = notes.selectedNoteID == note.id
         return Button {
+            NSApp.keyWindow?.makeFirstResponder(nil)
             withAnimation(.easeOut(duration: 0.16)) { notes.select(note) }
         } label: {
             HStack(spacing: 7) {
@@ -191,6 +142,7 @@ struct NotesWorkspaceView: View {
                             .stroke(selected ? Color.islandBlue.opacity(0.72) : Color.white.opacity(0.08), lineWidth: 1)
                     )
             )
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel(note.displayTitle)
@@ -229,12 +181,12 @@ struct NotesWorkspaceView: View {
     }
 
     private var footer: some View {
-        HStack(spacing: 12) {
-            Text("⌘⇧Space")
+        HStack(spacing: 8) {
+            if spacious { Text("⌘⇧Space")
                 .font(.system(size: 11.5, weight: .medium))
                 .foregroundStyle(.white.opacity(0.34))
                 .frame(width: 72, alignment: .leading)
-                .help(AppLocalization.text("快速召唤"))
+                .help(AppLocalization.text("快速召唤")) }
 
             HStack(spacing: 3) {
                 formatTextButton("H", label: "标题", command: .heading)
@@ -249,6 +201,32 @@ struct NotesWorkspaceView: View {
             .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(Color.white.opacity(0.11), lineWidth: 1))
 
             Spacer(minLength: 4)
+            if !spacious {
+                Button(action: model.expandNoteEditor) { Image(systemName: "arrow.up.left.and.arrow.down.right").frame(width: 27, height: 31) }
+                    .buttonStyle(FormatToolbarButtonStyle()).help("展开编辑").accessibilityLabel("展开编辑")
+            }
+#if !HALOFOLD_NO_CODEX_TODO
+            Button(action: discoverTodos) {
+                Image(systemName: "sparkles").frame(width: 31, height: 31)
+            }
+            .buttonStyle(FormatToolbarButtonStyle())
+            .disabled(isDiscoveringTodos)
+            .help(AppLocalization.text("发现待办"))
+            .accessibilityLabel(AppLocalization.text("发现待办"))
+#endif
+            Button(role: .destructive) {
+                if let id = notes.selectedNoteID, let restore = notes.deleteWithUndo(id) {
+                    model.offerUndo("已删除便签", restore: restore)
+                }
+            } label: {
+                Image(systemName: "trash")
+                    .font(.system(size: 14, weight: .medium))
+                    .frame(width: 31, height: 31)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(FormatToolbarButtonStyle())
+            .help(AppLocalization.text("删除当前便签"))
+            .accessibilityLabel(AppLocalization.text("删除当前便签"))
             saveState
         }
         .padding(.horizontal, 16)
@@ -305,13 +283,10 @@ struct NotesWorkspaceView: View {
         model.runningCount + model.needsActionCount + model.completedCount + model.pausedCount
     }
 
-    private var panelBackground: some View {
-        RoundedRectangle(cornerRadius: 24, style: .continuous)
-            .fill(Color(red: 0.055, green: 0.065, blue: 0.07).opacity(0.99))
-            .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).stroke(Color.white.opacity(0.2), lineWidth: 1))
-    }
+
 
     private func createNote() {
+        NSApp.keyWindow?.makeFirstResponder(nil)
         withAnimation(.easeOut(duration: 0.18)) { _ = notes.createNote() }
         DispatchQueue.main.async { titleFocused = true }
     }
@@ -356,6 +331,7 @@ struct NotesWorkspaceView: View {
 }
 
 extension Notification.Name {
+    static let focusExpandedNoteBody = Notification.Name("Halofold.focusExpandedNoteBody")
     static let focusNewNoteTitle = Notification.Name("Halofold.focusNewNoteTitle")
 }
 

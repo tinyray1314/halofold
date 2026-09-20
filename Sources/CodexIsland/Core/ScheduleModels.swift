@@ -5,6 +5,17 @@ import Foundation
 /// replace the hidden date component with today, so callers must recombine the
 /// two values before saving or validating a schedule.
 public enum ScheduleDateTime {
+    /// Today starts at the next five-minute boundary; other selected days start
+    /// at 09:00. Near midnight the suggested date advances with the time.
+    public static func suggestedStart(on day: Date, now: Date = Date(), calendar: Calendar = .current) -> Date {
+        if calendar.isDate(day, inSameDayAs: now) {
+            let minute = calendar.dateInterval(of: .minute, for: now)?.start ?? now
+            let step = 5 - calendar.component(.minute, from: now) % 5
+            return calendar.date(byAdding: .minute, value: step, to: minute) ?? now
+        }
+        return calendar.date(bySettingHour: 9, minute: 0, second: 0, of: day) ?? day
+    }
+
     public static func combining(day: Date, time: Date, calendar: Calendar = .current) -> Date {
         var components = calendar.dateComponents([.year, .month, .day], from: day)
         let timeComponents = calendar.dateComponents([.hour, .minute, .second], from: time)
@@ -38,15 +49,34 @@ public enum ScheduleOccurrenceStatus: String, Codable, CaseIterable, Equatable, 
 public enum ScheduleRoutineKind: String, Codable, CaseIterable, Identifiable, Sendable {
     case hydration
     case activity
+    case custom
 
     public var id: String { rawValue }
+
+    /// Only these rules are created automatically for every user. `.custom`
+    /// may have any number of user-created entries.
+    public static var builtInCases: [ScheduleRoutineKind] { [.hydration, .activity] }
 
     public var defaultIntervalMinutes: Int {
         switch self {
         case .hydration: 40
         case .activity: 80
+        case .custom: 60
         }
     }
+
+    public var defaultTitle: String {
+        switch self {
+        case .hydration: return "喝水"
+        case .activity: return "起身活动"
+        case .custom: return "自定义提醒"
+        }
+    }
+}
+
+public enum ScheduleRoutineReminderStyle: String, Codable, CaseIterable, Equatable, Sendable {
+    case interval
+    case dailyTime
 }
 
 /// A reusable plan. For a weekly plan, `startsAt` determines both the first
@@ -182,7 +212,13 @@ public struct ScheduleOccurrence: Identifiable, Codable, Equatable, Sendable {
 public struct ScheduleRoutine: Identifiable, Codable, Equatable, Sendable {
     public var id: UUID
     public var kind: ScheduleRoutineKind
+    /// Built-ins derive their title from `kind`; custom rules keep the user's
+    /// own text here.
+    public var title: String?
+    public var reminderStyle: ScheduleRoutineReminderStyle
     public var intervalMinutes: Int
+    /// Minutes after local midnight, used only by `.dailyTime`.
+    public var dailyTimeMinutes: Int?
     public var isEnabled: Bool
     public var lastRemindedAt: Date?
     public var createdAt: Date
@@ -191,7 +227,10 @@ public struct ScheduleRoutine: Identifiable, Codable, Equatable, Sendable {
     public init(
         id: UUID = UUID(),
         kind: ScheduleRoutineKind,
+        title: String? = nil,
+        reminderStyle: ScheduleRoutineReminderStyle = .interval,
         intervalMinutes: Int? = nil,
+        dailyTimeMinutes: Int? = nil,
         isEnabled: Bool = true,
         lastRemindedAt: Date? = nil,
         createdAt: Date = Date(),
@@ -199,11 +238,62 @@ public struct ScheduleRoutine: Identifiable, Codable, Equatable, Sendable {
     ) {
         self.id = id
         self.kind = kind
+        self.title = title?.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.reminderStyle = reminderStyle
         self.intervalMinutes = max(1, intervalMinutes ?? kind.defaultIntervalMinutes)
+        self.dailyTimeMinutes = reminderStyle == .dailyTime
+            ? min(max(0, dailyTimeMinutes ?? (9 * 60)), (24 * 60) - 1)
+            : nil
         self.isEnabled = isEnabled
         self.lastRemindedAt = lastRemindedAt
         self.createdAt = createdAt
         self.updatedAt = updatedAt
+    }
+
+    public var displayTitle: String {
+        if let title, !title.isEmpty { return title }
+        return kind.defaultTitle
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, kind, title, reminderStyle, intervalMinutes, dailyTimeMinutes
+        case isEnabled, lastRemindedAt, createdAt, updatedAt
+    }
+
+    /// Existing local schedule files only contain the interval fields. Decode
+    /// those files as interval routines so adding this feature never resets
+    /// a user's current hydration/activity configuration.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+        kind = try container.decodeIfPresent(ScheduleRoutineKind.self, forKey: .kind) ?? .custom
+        title = try container.decodeIfPresent(String.self, forKey: .title)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        reminderStyle = try container.decodeIfPresent(ScheduleRoutineReminderStyle.self, forKey: .reminderStyle) ?? .interval
+        intervalMinutes = max(1, try container.decodeIfPresent(Int.self, forKey: .intervalMinutes) ?? kind.defaultIntervalMinutes)
+        if reminderStyle == .dailyTime {
+            dailyTimeMinutes = min(max(0, try container.decodeIfPresent(Int.self, forKey: .dailyTimeMinutes) ?? (9 * 60)), (24 * 60) - 1)
+        } else {
+            dailyTimeMinutes = nil
+        }
+        isEnabled = try container.decodeIfPresent(Bool.self, forKey: .isEnabled) ?? true
+        lastRemindedAt = try container.decodeIfPresent(Date.self, forKey: .lastRemindedAt)
+        createdAt = try container.decodeIfPresent(Date.self, forKey: .createdAt) ?? Date()
+        updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt) ?? createdAt
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(kind, forKey: .kind)
+        try container.encodeIfPresent(title, forKey: .title)
+        try container.encode(reminderStyle, forKey: .reminderStyle)
+        try container.encode(intervalMinutes, forKey: .intervalMinutes)
+        try container.encodeIfPresent(dailyTimeMinutes, forKey: .dailyTimeMinutes)
+        try container.encode(isEnabled, forKey: .isEnabled)
+        try container.encodeIfPresent(lastRemindedAt, forKey: .lastRemindedAt)
+        try container.encode(createdAt, forKey: .createdAt)
+        try container.encode(updatedAt, forKey: .updatedAt)
     }
 }
 
@@ -232,7 +322,7 @@ public struct ScheduleSnapshot: Codable, Equatable, Sendable {
 
     public static func normalizedRoutines(_ source: [ScheduleRoutine]) -> [ScheduleRoutine] {
         var routines = source
-        for kind in ScheduleRoutineKind.allCases where !routines.contains(where: { $0.kind == kind }) {
+        for kind in ScheduleRoutineKind.builtInCases where !routines.contains(where: { $0.kind == kind }) {
             routines.append(ScheduleRoutine(kind: kind))
         }
         return routines

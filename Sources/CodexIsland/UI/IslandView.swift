@@ -36,8 +36,11 @@ enum IslandPresentation {
 
 struct IslandView: View {
     @ObservedObject var model: ApplicationModel
+    @ObservedObject var schedule: ScheduleLibraryModel
     @ObservedObject var settings: AppSettings
     let presentation: IslandPresentation
+    @State private var isConfirmingQuit = false
+    @State private var showsAllRunning = false
     @State private var rotatingUsageIndex = 0
     @State private var expandedResultState: ConversationState?
     private let rotation = Timer.publish(every: 6, on: .main, in: .common).autoconnect()
@@ -48,6 +51,7 @@ struct IslandView: View {
     ) {
         self.model = model
         self.presentation = presentation
+        _schedule = ObservedObject(wrappedValue: model.schedule)
         _settings = ObservedObject(wrappedValue: model.settings)
         _expandedResultState = State(initialValue:
             ProcessInfo.processInfo.arguments.contains("--completed-list-demo") ? .completed : nil
@@ -69,28 +73,15 @@ struct IslandView: View {
                         .frame(width: 42, height: 14)
                         .offset(y: -7)
                         .padding(.bottom, -7)
-                    if model.isShowingSettings {
-                        SettingsView(model: model)
-                            .transition(.opacity.combined(with: .move(edge: .top)))
-                    } else {
-                        ZStack(alignment: .top) {
-                            if model.expandedWorkspace == .notes {
-                                NotesWorkspaceView(model: model)
-                                    .transition(.horizontalFade(offset: -14))
-                            } else if model.expandedWorkspace == .schedule {
-                                ScheduleWorkspaceView(model: model)
-                                    .transition(.horizontalFade(offset: 14))
-                            } else {
-                                expandedCard
-                                    .transition(.horizontalFade(offset: 14))
-                            }
-                        }
-                        .background(
-                            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                                .fill(Color(red: 0.055, green: 0.065, blue: 0.07))
-                        )
-                        .animation(.easeOut(duration: 0.2), value: model.expandedWorkspace)
+                    ZStack(alignment: .top) {
+                        workspaceShell
+                            .opacity(model.isShowingSettings ? 0 : 1)
+                            .allowsHitTesting(!model.isShowingSettings)
+                            .accessibilityHidden(model.isShowingSettings)
+                        if model.isShowingSettings { SettingsView(model: model) }
                     }
+                    .onChange(of: model.expandedWorkspace) { NSApp.keyWindow?.makeFirstResponder(nil) }
+                    .onChange(of: model.isShowingSettings) { NSApp.keyWindow?.makeFirstResponder(nil) }
                     Spacer(minLength: 0)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -123,23 +114,36 @@ struct IslandView: View {
 
     @ViewBuilder
     private var taskStatusWing: some View {
-        if settings.isEnabled(.taskStatus) {
-            HStack(spacing: settings.collapsedLayoutMode == .compact ? 6 : 8) {
-                notchMetric(color: .islandGreen, icon: nil, label: AppLocalization.text(settings.collapsedLayoutMode == .compact ? "运行" : "运行中"), value: model.runningCount)
-                notchMetric(color: .islandBlue, icon: "hand.raised.fill", label: AppLocalization.text("待办"), value: model.needsActionCount)
-                notchMetric(color: .white.opacity(0.92), icon: "checkmark", label: AppLocalization.text("完成"), value: model.completedCount)
-                notchMetric(color: .islandAmber, icon: "exclamationmark", label: AppLocalization.text("中断"), value: model.pausedCount)
+        HStack(spacing: 7) {
+            if settings.isEnabled(.codexFollowUp), settings.isEnabled(.taskStatus), model.needsActionCount > 0 {
+                Image(systemName: "hand.raised.fill").foregroundStyle(Color.islandMint)
+                Text("待处理 \(model.needsActionCount)")
+            } else if settings.isEnabled(.codexFollowUp), settings.isEnabled(.taskStatus), model.runningCount > 0 {
+                Circle().fill(Color.islandMint).frame(width: 6, height: 6)
+                Text("进行中 \(model.runningCount)")
+            } else {
+                Image(systemName: "square.grid.2x2").foregroundStyle(Color.islandMint)
+                Text("随手记")
             }
-            .padding(.leading, settings.collapsedLayoutMode == .compact ? 11 : 14)
-            .padding(.trailing, settings.collapsedLayoutMode.notchContentSafetyInset)
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .font(.system(size: 12, weight: .medium))
+        .padding(.leading, 14)
+        .padding(.trailing, settings.collapsedLayoutMode.notchContentSafetyInset)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     @ViewBuilder
     private var rotatingUsageView: some View {
         let modules = enabledUsageModules
-        if !modules.isEmpty {
+        if settings.isEnabled(.schedule), let item = schedule.snapshot.occurrences.first(where: { !$0.isDeleted && $0.status == .running }) {
+            TimelineView(.periodic(from: .now, by: 1)) { context in
+                let seconds = max(0, Int(item.expectedEnd.timeIntervalSince(context.date)))
+                HStack(spacing: 7) {
+                    Image(systemName: "timer").foregroundStyle(Color.islandMint)
+                    Text(String(format: "%02d:%02d", seconds / 60, seconds % 60)).monospacedDigit()
+                }.font(.system(size: 12, weight: .medium))
+            }
+        } else if !modules.isEmpty {
             let module = modules[min(rotatingUsageIndex, modules.count - 1)]
             switch module {
             case .weeklyRemaining:
@@ -175,55 +179,19 @@ struct IslandView: View {
 
     private var expandedCard: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack {
-                Text("活动")
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.68))
-                Spacer()
-                if settings.isEnabled(.schedule) {
-                    Button {
-                        model.showScheduleWorkspace()
-                    } label: {
-                        Label("日程", systemImage: "clock")
-                            .font(.system(size: 12.5, weight: .medium))
-                            .padding(.horizontal, 10)
-                            .frame(height: 30)
-                            .background(Color.islandBlue.opacity(0.1), in: Capsule())
+            if settings.isEnabled(.taskStatus), let first = needsActionConversations.first {
+                VStack(alignment: .leading, spacing: 3) {
+                    Label("需要你处理 · \(needsActionConversations.count) 项", systemImage: "hand.raised.fill")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(Color.islandBlue)
+                        .padding(.horizontal, 24)
+                        .padding(.top, 8)
+                    ConversationRow(conversation: first, delegatedCount: model.delegatedChildren(of: first).count) {
+                        model.open(first)
                     }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(Color.islandBlue)
-                    .accessibilityLabel("打开我的日程")
                 }
-                if settings.isEnabled(.quickNotes) {
-                    Button {
-                        model.showNotesWorkspace()
-                    } label: {
-                        Label("便签", systemImage: "note.text")
-                            .font(.system(size: 12.5, weight: .medium))
-                            .padding(.horizontal, 10)
-                            .frame(height: 30)
-                            .background(Color.white.opacity(0.07), in: Capsule())
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(.white.opacity(0.78))
-                    .accessibilityLabel("打开便签")
-                }
-                Button {
-                    NotificationCenter.default.post(name: .showCodexIslandSettings, object: nil)
-                } label: {
-                    Image(systemName: "gearshape")
-                        .font(.system(size: 18, weight: .medium))
-                        .foregroundStyle(.white.opacity(0.7))
-                        .frame(width: 30, height: 30)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("打开设置")
-                QuitApplicationButton()
+                .background(Color.islandBlue.opacity(0.07))
             }
-            .padding(.horizontal, 24)
-            .padding(.top, 17)
-            .padding(.bottom, 12)
-
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) {
                     ForEach(settings.moduleOrder.filter(settings.isEnabled)) { module in
@@ -245,21 +213,100 @@ struct IslandView: View {
                 Circle()
                     .fill(model.sourceHasWarning ? Color.islandAmber : Color.white.opacity(0.35))
                     .frame(width: 5, height: 5)
-                Text(freshnessText)
+                Text(model.sourceStatusText)
                     .font(.system(size: 12))
-                    .foregroundStyle(.white.opacity(0.42))
+                    .foregroundStyle(.white.opacity(0.64))
+                if model.sourceHasWarning {
+                    Spacer(minLength: 4)
+                    Button(model.sourceRecoveryTitle, action: model.recoverSource)
+                        .buttonStyle(.plain)
+                        .foregroundStyle(Color.islandBlue)
+                        .fixedSize()
+                }
             }
             .padding(.horizontal, 24)
             .padding(.top, 13)
             .padding(.bottom, 18)
         }
-        .frame(width: ExpandedIslandLayout.panelWidth, height: ExpandedIslandLayout.workspaceHeight)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .foregroundStyle(.white)
-        .background(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(Color(red: 0.055, green: 0.065, blue: 0.07).opacity(0.96))
-                .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).stroke(Color.white.opacity(0.2), lineWidth: 1))
-        )
+    }
+
+    private var workspaceShell: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 3) {
+                workspaceTab(.now, title: "现在", icon: "square.grid.2x2", action: model.showQuickPanel)
+                if settings.isEnabled(.codexFollowUp) { workspaceTab(.activity, title: "活动", icon: "waveform.path", action: model.showActivityWorkspace) }
+                if settings.isEnabled(.quickNotes) { workspaceTab(.notes, title: "便签", icon: "note.text", action: { model.showNotesWorkspace() }) }
+                if settings.isEnabled(.schedule) { workspaceTab(.schedule, title: "日程", icon: "calendar", action: model.showScheduleWorkspace) }
+                Spacer(minLength: 4)
+                Button(action: model.showSettings) {
+                    Image(systemName: "gearshape").frame(width: 32, height: 34)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("打开设置")
+                Button(action: model.toggleExpanded) {
+                    Image(systemName: "chevron.up").frame(width: 28, height: 34)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("收起面板")
+                Menu {
+                    Button("退出 Halofold…") { isConfirmingQuit = true }
+                } label: { Image(systemName: "ellipsis").frame(width: 24, height: 34) }
+                .menuStyle(.borderlessButton)
+                .menuIndicator(.hidden)
+                .fixedSize()
+                .accessibilityLabel("应用菜单")
+            }
+            .padding(.horizontal, 18)
+            .padding(.top, 13)
+            .padding(.bottom, 10)
+            if model.expandedWorkspace != .now { FocusStatusBar(model: model, schedule: model.schedule) }
+            ZStack(alignment: .top) {
+                WorkspaceSurface(isVisible: model.expandedWorkspace == .now && !model.isShowingSettings) { QuickAssistantView(model: model) }
+                WorkspaceSurface(isVisible: model.expandedWorkspace == .activity && !model.isShowingSettings) { expandedCard }
+                WorkspaceSurface(isVisible: model.expandedWorkspace == .notes && !model.isShowingSettings) { NotesWorkspaceView(model: model) }
+                WorkspaceSurface(isVisible: model.expandedWorkspace == .schedule && !model.isShowingSettings) { ScheduleWorkspaceView(model: model) }
+            }
+            if let notice = model.undoNotice {
+                HStack {
+                    Text(notice.message).lineLimit(1)
+                    Spacer()
+                    Button("撤销", action: model.undoLastDeletion)
+                        .buttonStyle(.plain).foregroundStyle(Color.islandBlue)
+                }
+                .font(.system(size: 13, weight: .medium))
+                .padding(12)
+                .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
+                .padding(.horizontal, 18).padding(.bottom, 12)
+            }
+        }
+        .frame(width: ExpandedIslandLayout.panelWidth, height: ExpandedIslandLayout.workspaceHeight)
+        .foregroundStyle(.white.opacity(0.9))
+        .background(Color(red: 0.055, green: 0.065, blue: 0.07), in: RoundedRectangle(cornerRadius: 24))
+        .overlay(RoundedRectangle(cornerRadius: 24).stroke(Color.white.opacity(0.16), lineWidth: 1))
+        .clipShape(RoundedRectangle(cornerRadius: 24))
+        .environment(\.colorScheme, .dark)
+        .preferredColorScheme(.dark)
+        .alert("退出 Halofold？", isPresented: $isConfirmingQuit) {
+            Button("取消", role: .cancel) {}
+            Button("退出", role: .destructive) { NSApp.terminate(nil) }
+        } message: { Text("退出后将停止任务监测和提醒。") }
+    }
+
+    private func workspaceTab(_ workspace: ExpandedWorkspace, title: String, icon: String, action: @escaping () -> Void) -> some View {
+        let selected = model.expandedWorkspace == workspace
+        return Button(action: action) {
+            Label(title, systemImage: icon)
+                .font(.system(size: 13, weight: selected ? .semibold : .medium))
+                .padding(.horizontal, 8).frame(height: 34)
+                .foregroundStyle(selected ? Color.islandMint : Color.white.opacity(0.65))
+                .background(selected ? Color.islandMint.opacity(0.10) : Color.clear, in: RoundedRectangle(cornerRadius: 9))
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("打开" + title)
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
     private var taskList: some View {
@@ -277,7 +324,7 @@ struct IslandView: View {
             } else {
                 if !runningConversations.isEmpty {
                     LazyVStack(spacing: 0) {
-                        ForEach(runningConversations) { conversation in
+                        ForEach(showsAllRunning ? runningConversations : Array(runningConversations.prefix(3))) { conversation in
                             ConversationRow(conversation: conversation, delegatedCount: model.delegatedChildren(of: conversation).count) {
                                 model.open(conversation)
                             }
@@ -287,7 +334,14 @@ struct IslandView: View {
                         }
                     }
                 }
-                if !needsActionConversations.isEmpty {
+                if runningConversations.count > 3 {
+                    Button(showsAllRunning ? "收起运行中的任务" : "显示全部 \(runningConversations.count) 项运行任务") { showsAllRunning.toggle() }
+                        .buttonStyle(.plain)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(Color.islandBlue)
+                        .padding(12)
+                }
+                if needsActionConversations.count > 1 {
                     Divider().overlay(Color.white.opacity(0.11)).padding(.horizontal, 24)
                     resultDisclosure(state: .needsAction, conversations: needsActionConversations)
                 }
@@ -505,12 +559,6 @@ struct IslandView: View {
         return AppLocalization.format("%@重置", reset.formatted(.dateTime.month(.abbreviated).day()))
     }
 
-    private var freshnessText: String {
-        guard let date = model.usage.updatedAt else { return model.sourceMessage }
-        let source = AppLocalization.text(model.usage.source == .official ? "官方周用量" : "官方用量 · 本机同步")
-        return AppLocalization.format("更新于 %@ · %@", date.formatted(date: .omitted, time: .shortened), source)
-    }
-
     private func tokenText(_ value: Int) -> String {
         if value >= 1_000_000 { return String(format: "%.1fM", Double(value) / 1_000_000) }
         if value >= 1_000 { return String(format: value >= 100_000 ? "%.0fK" : "%.1fK", Double(value) / 1_000) }
@@ -663,4 +711,66 @@ private extension AnyTransition {
 
 extension Notification.Name {
     static let showCodexIslandSettings = Notification.Name("showCodexIslandSettings")
+}
+
+@MainActor
+private struct FocusStatusBar: View {
+    @ObservedObject var model: ApplicationModel
+    @ObservedObject var schedule: ScheduleLibraryModel
+
+    var body: some View {
+        if let item = schedule.snapshot.occurrences.first(where: { !$0.isDeleted && $0.status == .running }) {
+            TimelineView(.periodic(from: .now, by: 1)) { context in
+                Button {
+                    model.showScheduleWorkspace()
+                    model.isShowingFocusDetail = true
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "timer")
+                        Text(item.title).lineLimit(1)
+                        Spacer()
+                        let seconds = max(0, Int(item.expectedEnd.timeIntervalSince(context.date)))
+                        Text(String(format: "%02d:%02d", seconds / 60, seconds % 60)).monospacedDigit()
+                        Image(systemName: "chevron.right").font(.system(size: 10, weight: .semibold))
+                    }
+                    .font(.system(size: 12.5, weight: .medium))
+                    .foregroundStyle(Color.islandBlue)
+                    .padding(.horizontal, 12).padding(.vertical, 9)
+                    .background(Color.islandBlue.opacity(0.09), in: RoundedRectangle(cornerRadius: 9))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("查看专注详情：" + item.title)
+                .accessibilityValue("剩余 \(max(0, Int(item.expectedEnd.timeIntervalSince(context.date))) / 60) 分钟")
+            }
+            .padding(.horizontal, 18).padding(.bottom, 10)
+        }
+    }
+}
+
+/// Keep the native hosting view alive while hiding it from both keyboard focus
+/// and accessibility. Opacity alone leaves AppKit text editors in the AX tree.
+private struct WorkspaceSurface<Content: View>: NSViewRepresentable {
+    let isVisible: Bool
+    @ViewBuilder var content: () -> Content
+
+    func makeNSView(context: Context) -> NSView {
+        let container = NSView()
+        let host = NSHostingView(rootView: content())
+        host.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(host)
+        NSLayoutConstraint.activate([
+            host.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            host.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            host.topAnchor.constraint(equalTo: container.topAnchor),
+            host.bottomAnchor.constraint(equalTo: container.bottomAnchor)
+        ])
+        return container
+    }
+
+    func updateNSView(_ view: NSView, context: Context) {
+        guard let host = view.subviews.first as? NSHostingView<Content> else { return }
+        host.rootView = content()
+        view.isHidden = !isVisible
+        view.setAccessibilityHidden(!isVisible)
+    }
 }

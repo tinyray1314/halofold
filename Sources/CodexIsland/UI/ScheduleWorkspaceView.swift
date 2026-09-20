@@ -8,12 +8,13 @@ struct ScheduleWorkspaceView: View {
     @ObservedObject var model: ApplicationModel
     @ObservedObject private var schedule: ScheduleLibraryModel
 
+    @FocusState private var focusedTitle: Bool
     @State private var selectedTab: ScheduleTab = .week
     @State private var isShowingForm = false
     @State private var editingOccurrenceID: String?
     @State private var editingScope: ScheduleEditScope = .thisOccurrence
+    @State private var isEditingRepeatedOccurrence = false
     @State private var isEditingPastDay = false
-    @State private var isShowingMoreSettings = false
     @State private var draftTitle = ""
     /// The day selected in the weekly planner. It must not be derived from the
     /// time-only picker: macOS may substitute that picker's hidden date with
@@ -25,8 +26,14 @@ struct ScheduleWorkspaceView: View {
     @State private var isShowingTimeAdjustment = false
     @State private var adjustmentStart = Date()
     @State private var adjustmentDuration = 60
+    @State private var isShowingRoutineEditor = false
+    @State private var editingRoutineID: UUID?
+    @State private var routineDraftTitle = ""
+    @State private var routineDraftStyle: ScheduleRoutineReminderStyle = .interval
+    @State private var routineDraftInterval = 60
+    @State private var routineDraftTime = Date()
     @State private var toast: Toast?
-    @State private var deletedOneTimeOccurrence: ScheduleOccurrence?
+    @State private var pendingSeriesDeletion: ScheduleOccurrence?
 
     private let calendar: Calendar = {
         var value = Calendar.current
@@ -43,26 +50,43 @@ struct ScheduleWorkspaceView: View {
     var body: some View {
         ZStack {
             VStack(alignment: .leading, spacing: 0) {
-                header
                 segmentedControl
                 Divider().overlay(Color.white.opacity(0.1))
 
-                ScrollView {
-                    Group {
-                        switch selectedTab {
-                        case .week:
-                            weekPlan
-                        case .routine:
-                            routinePlan
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        Group {
+                            switch selectedTab {
+                            case .week:
+                                weekPlan
+                            case .routine:
+                                routinePlan
+                            }
                         }
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 15)
                     }
-                    .padding(.horizontal, 18)
-                    .padding(.vertical, 15)
+                    .scrollIndicators(.visible)
+                    .onChange(of: isShowingForm) { _, showing in
+                        if showing { revealEditor(proxy) }
+                    }
+                    .onChange(of: editingOccurrenceID) { _, id in
+                        if id != nil { revealEditor(proxy) }
+                    }
+                    .onChange(of: isShowingRoutineEditor) { _, showing in
+                        if showing { revealEditor(proxy) }
+                    }
+                    .onChange(of: editingRoutineID) { _, id in
+                        if id != nil { revealEditor(proxy) }
+                    }
                 }
-                .scrollIndicators(.visible)
             }
+            .disabled(isPresentingStateOverlay)
+            .allowsHitTesting(!isPresentingStateOverlay)
+            .accessibilityElement(children: .contain)
+            .accessibilityHidden(isPresentingStateOverlay)
 
-            if selectedTab == .week, let occurrence = runningOccurrence {
+            if selectedTab == .week, model.isShowingFocusDetail, let occurrence = runningOccurrence {
                 runningOverlay(for: occurrence)
             } else if selectedTab == .week, let occurrence = overdueOccurrence {
                 overdueOverlay(for: occurrence)
@@ -75,73 +99,35 @@ struct ScheduleWorkspaceView: View {
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
-        .frame(width: ExpandedIslandLayout.panelWidth, height: ExpandedIslandLayout.workspaceHeight)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .foregroundStyle(.white)
-        .background(panelBackground)
+
         .environment(\.colorScheme, .dark)
+        .onChange(of: model.isShowingFocusDetail) { _, showing in
+            if showing { selectedTab = .week }
+        }
         .animation(.easeOut(duration: 0.16), value: selectedTab)
         .animation(.easeOut(duration: 0.16), value: isShowingForm)
+        .alert("删除本次及后续重复日程？", isPresented: Binding(
+            get: { pendingSeriesDeletion != nil },
+            set: { if !$0 { pendingSeriesDeletion = nil } }
+        )) {
+            Button("取消", role: .cancel) { pendingSeriesDeletion = nil }
+            Button("删除后续", role: .destructive) {
+                if let item = pendingSeriesDeletion { schedule.delete(item.id, scope: .followingOccurrences) }
+                pendingSeriesDeletion = nil
+            }
+        } message: {
+            if let item = pendingSeriesDeletion {
+                Text("将删除「\(item.title)」从\(item.plannedStart.formatted(date: .abbreviated, time: .omitted))起的重复安排，之前的记录保留。")
+            }
+        }
         .sheet(isPresented: $isShowingTimeAdjustment) {
-            timeAdjustmentSheet
+            timeAdjustmentSheet.preferredColorScheme(.dark)
         }
     }
 
     // MARK: - Header and navigation
-
-    private var header: some View {
-        HStack(spacing: 10) {
-            Text("我的日程")
-                .font(.system(size: 17, weight: .semibold))
-            Spacer()
-            if model.settings.isEnabled(.quickNotes) {
-                Button {
-                    model.showNotesWorkspace()
-                } label: {
-                    Label("便签", systemImage: "note.text")
-                        .font(.system(size: 13.5, weight: .medium))
-                        .padding(.horizontal, 12)
-                        .frame(height: 34)
-                        .background(Color.white.opacity(0.055), in: Capsule())
-                        .overlay(Capsule().stroke(Color.white.opacity(0.1), lineWidth: 1))
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("打开便签")
-            }
-            if model.settings.isEnabled(.codexFollowUp) {
-                Button {
-                    model.showActivityWorkspace()
-                } label: {
-                    Text("活动")
-                        .font(.system(size: 13.5, weight: .medium))
-                        .padding(.horizontal, 12)
-                        .frame(height: 34)
-                        .background(Color.white.opacity(0.055), in: Capsule())
-                        .overlay(Capsule().stroke(Color.white.opacity(0.1), lineWidth: 1))
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("打开活动")
-            }
-
-            Menu {
-                Button("打开设置") { model.showSettings() }
-            } label: {
-                Image(systemName: "ellipsis")
-                    .font(.system(size: 15, weight: .semibold))
-                    .frame(width: 34, height: 34)
-                    .background(Color.white.opacity(0.055), in: Circle())
-                    .overlay(Circle().stroke(Color.white.opacity(0.1), lineWidth: 1))
-            }
-            .menuStyle(.borderlessButton)
-            .menuIndicator(.hidden)
-            .fixedSize()
-            .accessibilityLabel("日程菜单")
-
-            QuitApplicationButton()
-        }
-        .padding(.horizontal, 18)
-        .padding(.top, 15)
-        .padding(.bottom, 12)
-    }
 
     private var segmentedControl: some View {
         HStack(spacing: 6) {
@@ -157,6 +143,7 @@ struct ScheduleWorkspaceView: View {
         let isSelected = selectedTab == tab
         return Button {
             withAnimation(.easeOut(duration: 0.16)) { selectedTab = tab }
+            if tab == .routine { model.isShowingFocusDetail = false }
         } label: {
             Label(title, systemImage: icon)
                 .font(.system(size: 13, weight: isSelected ? .semibold : .medium))
@@ -181,6 +168,16 @@ struct ScheduleWorkspaceView: View {
 
     private var weekPlan: some View {
         VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Text(schedule.selectedDate.formatted(.dateTime.year().month().day()))
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.65))
+                Spacer()
+                Button("今天") { select(Date()) }
+                    .buttonStyle(.plain).foregroundStyle(Color.islandBlue)
+                    .font(.system(size: 12, weight: .medium))
+            }
+            .padding(.bottom, 9)
             weekNavigator
                 .padding(.bottom, 15)
 
@@ -190,7 +187,7 @@ struct ScheduleWorkspaceView: View {
                 upcomingHeader
             }
 
-            if isShowingForm {
+            if isShowingForm || editingOccurrenceID != nil {
                 scheduleForm
                     .padding(.top, 11)
                     .padding(.bottom, 5)
@@ -207,7 +204,7 @@ struct ScheduleWorkspaceView: View {
             if isPastSelectedDate {
                 historyActions
                     .padding(.top, 13)
-            } else if !isShowingForm {
+            } else if !isShowingForm && editingOccurrenceID == nil {
                 Button(action: beginAdding) {
                     Label("添加日程", systemImage: "plus")
                         .font(.system(size: 13.5, weight: .medium))
@@ -369,10 +366,6 @@ struct ScheduleWorkspaceView: View {
             ForEach(dayOccurrences) { occurrence in
                 VStack(spacing: 0) {
                     occurrenceRow(occurrence)
-                    if editingOccurrenceID == occurrence.id {
-                        scheduleForm
-                            .padding(.vertical, 10)
-                    }
                     if occurrence.id != dayOccurrences.last?.id {
                         Divider().overlay(Color.white.opacity(0.085)).padding(.leading, 59)
                     }
@@ -390,11 +383,11 @@ struct ScheduleWorkspaceView: View {
                     .font(.system(size: 13.5, weight: .semibold, design: .rounded))
                     .foregroundStyle(.white.opacity(0.9))
                 Text("\(occurrence.plannedDurationMinutes + occurrence.extendedMinutes) 分钟 · 至 \(timeText(occurrence.expectedEnd))")
-                    .font(.system(size: 10.5))
-                    .foregroundStyle(.white.opacity(0.38))
+                    .font(.system(size: 11.5))
+                    .foregroundStyle(.white.opacity(0.62))
                     .lineLimit(1)
             }
-            .frame(width: 103, alignment: .leading)
+            .frame(width: 115, alignment: .leading)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(occurrence.title)
@@ -485,6 +478,9 @@ struct ScheduleWorkspaceView: View {
 
     private var scheduleForm: some View {
         VStack(alignment: .leading, spacing: 11) {
+            Text("\(editingOccurrenceID == nil ? "添加日程" : "编辑日程") · \(draftDay.formatted(.dateTime.month().day()))")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(.white.opacity(0.65))
             TextField("项目名称", text: $draftTitle, prompt: Text("例如：深度阅读"))
                 .textFieldStyle(.plain)
                 .font(.system(size: 14, weight: .medium))
@@ -494,6 +490,7 @@ struct ScheduleWorkspaceView: View {
                 .background(Color.black.opacity(0.21), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                 .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).stroke(Color.white.opacity(0.1), lineWidth: 1))
                 .accessibilityLabel("项目名称")
+                .focused($focusedTitle)
 
             HStack(spacing: 9) {
                 fieldLabel("开始时间")
@@ -504,8 +501,12 @@ struct ScheduleWorkspaceView: View {
                     .accessibilityLabel("开始时间")
                 Spacer(minLength: 8)
                 fieldLabel("持续时长")
+                TextField("分钟", value: $draftDuration, format: .number)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 48)
+                    .accessibilityLabel("持续分钟数")
                 Stepper(value: $draftDuration, in: 5...600, step: 5) {
-                    Text("\(draftDuration) 分钟")
+                    Text("分钟")
                         .font(.system(size: 12.5, weight: .medium, design: .rounded))
                         .foregroundStyle(.white.opacity(0.78))
                 }
@@ -513,17 +514,6 @@ struct ScheduleWorkspaceView: View {
                 .accessibilityLabel("持续时长，\(draftDuration) 分钟")
             }
 
-            Button {
-                withAnimation(.easeOut(duration: 0.15)) { isShowingMoreSettings.toggle() }
-            } label: {
-                Label("更多设置", systemImage: isShowingMoreSettings ? "chevron.up" : "chevron.down")
-                    .font(.system(size: 12.5, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.53))
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(isShowingMoreSettings ? "收起更多设置" : "展开更多设置")
-
-            if isShowingMoreSettings {
                 HStack {
                     Text("重复")
                         .font(.system(size: 12.5))
@@ -537,8 +527,12 @@ struct ScheduleWorkspaceView: View {
                     .pickerStyle(.menu)
                     .tint(.white.opacity(0.8))
                     .accessibilityLabel("重复规则")
+                    .disabled(editingOccurrenceID != nil && isEditingRepeatedOccurrence && editingScope == .thisOccurrence)
                 }
                 .padding(.horizontal, 2)
+            if editingOccurrenceID != nil && isEditingRepeatedOccurrence && editingScope == .thisOccurrence {
+                Text("正在修改本次安排；要调整重复规则，请在菜单中选择“修改后续”。")
+                    .font(.system(size: 12)).foregroundStyle(.white.opacity(0.65))
             }
 
             if let conflictCount = conflictCount, conflictCount > 0 {
@@ -559,6 +553,7 @@ struct ScheduleWorkspaceView: View {
                     .accessibilityLabel(editingOccurrenceID == nil ? "添加日程" : "保存日程")
             }
         }
+        .id("schedule-editor")
         .padding(12)
         .background(Color.white.opacity(0.037), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 11, style: .continuous).stroke(Color.white.opacity(0.1), lineWidth: 1))
@@ -568,14 +563,27 @@ struct ScheduleWorkspaceView: View {
 
     private var routinePlan: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("例行计划")
-                .font(.system(size: 15, weight: .semibold))
+            HStack(alignment: .firstTextBaseline) {
+                Text("例行计划")
+                    .font(.system(size: 15, weight: .semibold))
+                Spacer()
+                Button(action: beginAddingRoutine) {
+                    Label("添加事项", systemImage: "plus")
+                }
+                .buttonStyle(WorkspaceSecondaryButtonStyle(accented: true))
+                .accessibilityLabel("添加例行事项")
+            }
             Text("只在电脑唤醒且未锁屏时提醒")
                 .font(.system(size: 12.5))
                 .foregroundStyle(.white.opacity(0.46))
                 .padding(.top, 3)
                 .padding(.bottom, 11)
 
+            if isShowingRoutineEditor {
+                routineEditor
+                    .id("schedule-editor")
+                    .padding(.bottom, 12)
+            }
             LazyVStack(spacing: 0) {
                 ForEach(schedule.snapshot.routines) { routine in
                     routineRow(routine)
@@ -586,6 +594,7 @@ struct ScheduleWorkspaceView: View {
             }
             .overlay(alignment: .top) { Divider().overlay(Color.white.opacity(0.1)) }
             .overlay(alignment: .bottom) { Divider().overlay(Color.white.opacity(0.1)) }
+
 
             Label("专注进行中时，会在结束后合并提醒一次。", systemImage: "speaker.wave.2")
                 .font(.system(size: 12))
@@ -601,26 +610,104 @@ struct ScheduleWorkspaceView: View {
                 .foregroundStyle(routine.isEnabled ? Color.islandBlue : .white.opacity(0.4))
                 .frame(width: 24)
             VStack(alignment: .leading, spacing: 3) {
-                Text(routine.kind.title)
+                Text(routine.displayTitle)
                     .font(.system(size: 14, weight: .medium))
                     .foregroundStyle(.white.opacity(0.93))
-                Stepper(value: routineIntervalBinding(for: routine), in: 10...240, step: 5) {
-                    Text("每 \(routine.intervalMinutes) 分钟")
+                if routine.kind != .custom, routine.reminderStyle == .interval {
+                    Stepper(value: routineIntervalBinding(for: routine), in: 10...240, step: 5) {
+                        Text("每 \(routine.intervalMinutes) 分钟")
+                            .font(.system(size: 11.5))
+                            .foregroundStyle(.white.opacity(0.46))
+                    }
+                    .fixedSize()
+                    .disabled(!routine.isEnabled)
+                    .accessibilityLabel("\(routine.displayTitle)间隔，\(routine.intervalMinutes) 分钟")
+                } else {
+                    Text(routineScheduleText(routine))
                         .font(.system(size: 11.5))
                         .foregroundStyle(.white.opacity(0.46))
                 }
-                .fixedSize()
-                .disabled(!routine.isEnabled)
-                .accessibilityLabel("\(routine.kind.title)间隔，\(routine.intervalMinutes) 分钟")
             }
             Spacer()
-            Toggle(routine.kind.title, isOn: routineEnabledBinding(for: routine))
+            if routine.kind == .custom {
+                Menu {
+                    Button("编辑") { beginEditingRoutine(routine) }
+                    Divider()
+                    Button("删除", role: .destructive) {
+                        if let restore = schedule.deleteRoutineWithUndo(routine.id) {
+                            model.offerUndo("已删除例行事项", restore: restore)
+                        }
+                    }
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.system(size: 15, weight: .semibold))
+                        .frame(width: 28, height: 28)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("\(routine.displayTitle)更多操作")
+            }
+            Toggle(routine.displayTitle, isOn: routineEnabledBinding(for: routine))
                 .labelsHidden()
                 .toggleStyle(.switch)
                 .tint(Color.islandBlue)
-                .accessibilityLabel("\(routine.kind.title)提醒")
+                .accessibilityLabel("\(routine.displayTitle)提醒")
         }
         .padding(.vertical, 13)
+    }
+
+    private var routineEditor: some View {
+        VStack(alignment: .leading, spacing: 11) {
+            Text(editingRoutineID == nil ? "添加例行事项" : "编辑例行事项")
+                .font(.system(size: 13.5, weight: .semibold))
+            TextField("例如：点外卖", text: $routineDraftTitle)
+                .textFieldStyle(.plain)
+                .font(.system(size: 14))
+                .padding(.horizontal, 11)
+                .frame(height: 36)
+                .background(Color.black.opacity(0.18), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).stroke(Color.white.opacity(0.1), lineWidth: 1))
+                .accessibilityLabel("例行事项名称")
+
+            Picker("提醒方式", selection: $routineDraftStyle) {
+                Text("间隔提醒").tag(ScheduleRoutineReminderStyle.interval)
+                Text("每日定时").tag(ScheduleRoutineReminderStyle.dailyTime)
+            }
+            .pickerStyle(.segmented)
+            .accessibilityLabel("例行提醒方式")
+
+            HStack(spacing: 9) {
+                if routineDraftStyle == .interval {
+                    fieldLabel("提醒间隔")
+                    Stepper(value: $routineDraftInterval, in: 5...720, step: 5) {
+                        Text("每 \(routineDraftInterval) 分钟")
+                            .font(.system(size: 13.5, weight: .medium))
+                    }
+                    .fixedSize()
+                    .accessibilityLabel("每\(routineDraftInterval)分钟提醒")
+                } else {
+                    fieldLabel("每天提醒")
+                    DatePicker("每天提醒", selection: $routineDraftTime, displayedComponents: .hourAndMinute)
+                        .labelsHidden()
+                        .datePickerStyle(.compact)
+                        .tint(Color.islandBlue)
+                        .accessibilityLabel("每日定时提醒时间")
+                }
+                Spacer()
+            }
+
+            HStack(spacing: 8) {
+                Button("取消", action: cancelRoutineEditor)
+                    .buttonStyle(WorkspaceSecondaryButtonStyle())
+                Spacer()
+                Button(editingRoutineID == nil ? "添加" : "保存", action: commitRoutineEditor)
+                    .buttonStyle(WorkspacePrimaryButtonStyle())
+                    .disabled(routineDraftTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .accessibilityLabel(editingRoutineID == nil ? "添加例行事项" : "保存例行事项")
+            }
+        }
+        .padding(12)
+        .background(Color.white.opacity(0.037), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 11, style: .continuous).stroke(Color.white.opacity(0.1), lineWidth: 1))
     }
 
     private func awaitingStartOverlay(for occurrence: ScheduleOccurrence) -> some View {
@@ -689,6 +776,10 @@ struct ScheduleWorkspaceView: View {
     private func runningOverlay(for occurrence: ScheduleOccurrence) -> some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
             stateOverlay {
+                Button("返回日程列表") { model.isShowingFocusDetail = false }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(Color.islandBlue)
+                    .padding(.bottom, 4)
                 Text("进行中")
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(Color.islandBlue)
@@ -723,7 +814,7 @@ struct ScheduleWorkspaceView: View {
             .padding(.horizontal, 22)
             .padding(.vertical, 24)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color(red: 0.045, green: 0.052, blue: 0.058).opacity(0.985))
+            .background(Color(red: 0.045, green: 0.052, blue: 0.058))
             .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).stroke(Color.white.opacity(0.19), lineWidth: 1))
             .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
             .transition(.opacity)
@@ -761,7 +852,20 @@ struct ScheduleWorkspaceView: View {
     private func routineEnabledBinding(for routine: ScheduleRoutine) -> Binding<Bool> {
         Binding(
             get: { routine.isEnabled },
-            set: { schedule.updateRoutine(routine.kind, isEnabled: $0) }
+            set: { isEnabled in
+                if routine.kind == .custom {
+                    _ = schedule.updateCustomRoutine(
+                        routine.id,
+                        title: routine.displayTitle,
+                        reminderStyle: routine.reminderStyle,
+                        intervalMinutes: routine.intervalMinutes,
+                        dailyTimeMinutes: routine.dailyTimeMinutes,
+                        isEnabled: isEnabled
+                    )
+                } else {
+                    schedule.updateRoutine(routine.kind, isEnabled: isEnabled)
+                }
+            }
         )
     }
 
@@ -772,10 +876,61 @@ struct ScheduleWorkspaceView: View {
         )
     }
 
+    private func beginAddingRoutine() {
+        editingRoutineID = nil
+        routineDraftTitle = ""
+        routineDraftStyle = .interval
+        routineDraftInterval = 60
+        routineDraftTime = date(on: Date(), hour: 9, minute: 0)
+        withAnimation(.easeOut(duration: 0.16)) { isShowingRoutineEditor = true }
+    }
+
+    private func beginEditingRoutine(_ routine: ScheduleRoutine) {
+        editingRoutineID = routine.id
+        routineDraftTitle = routine.displayTitle
+        routineDraftStyle = routine.reminderStyle
+        routineDraftInterval = routine.intervalMinutes
+        let minutes = routine.dailyTimeMinutes ?? (9 * 60)
+        routineDraftTime = date(on: Date(), hour: minutes / 60, minute: minutes % 60)
+        withAnimation(.easeOut(duration: 0.16)) { isShowingRoutineEditor = true }
+    }
+
+    private func commitRoutineEditor() {
+        let title = routineDraftTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !title.isEmpty else { return }
+        let dailyTimeMinutes = routineDraftStyle == .dailyTime ? minutesAfterMidnight(routineDraftTime) : nil
+        if let editingRoutineID {
+            _ = schedule.updateCustomRoutine(
+                editingRoutineID,
+                title: title,
+                reminderStyle: routineDraftStyle,
+                intervalMinutes: routineDraftInterval,
+                dailyTimeMinutes: dailyTimeMinutes
+            )
+            showToast("已保存例行事项", icon: "checkmark")
+        } else if schedule.addCustomRoutine(
+            title: title,
+            reminderStyle: routineDraftStyle,
+            intervalMinutes: routineDraftInterval,
+            dailyTimeMinutes: dailyTimeMinutes
+        ) != nil {
+            showToast("已添加例行事项", icon: "checkmark")
+        }
+        cancelRoutineEditor()
+    }
+
+    private func cancelRoutineEditor() {
+        editingRoutineID = nil
+        withAnimation(.easeOut(duration: 0.16)) { isShowingRoutineEditor = false }
+    }
+
     private func select(_ day: Date) {
         withAnimation(.easeOut(duration: 0.14)) {
             schedule.selectedDate = calendar.startOfDay(for: day)
-            cancelForm()
+            if isShowingForm {
+                draftDay = calendar.startOfDay(for: day)
+                draftStart = ScheduleDateTime.combining(day: draftDay, time: draftStart, calendar: calendar)
+            }
             isEditingPastDay = false
         }
     }
@@ -785,33 +940,41 @@ struct ScheduleWorkspaceView: View {
         select(moved)
     }
 
+    private func revealEditor(_ proxy: ScrollViewProxy) {
+        DispatchQueue.main.async {
+            withAnimation(.easeOut(duration: 0.16)) { proxy.scrollTo("schedule-editor", anchor: .top) }
+            if selectedTab == .week { focusedTitle = true }
+        }
+    }
+
     private func beginAdding() {
         editingOccurrenceID = nil
         editingScope = .thisOccurrence
+        isEditingRepeatedOccurrence = false
         draftTitle = ""
-        draftDay = calendar.startOfDay(for: schedule.selectedDate)
-        draftStart = date(on: draftDay, hour: 9, minute: 0)
+        draftStart = ScheduleDateTime.suggestedStart(on: schedule.selectedDate, calendar: calendar)
+        draftDay = calendar.startOfDay(for: draftStart)
         draftDuration = 60
         draftRepeatRule = .none
-        isShowingMoreSettings = false
         withAnimation(.easeOut(duration: 0.16)) { isShowingForm = true }
     }
 
     private func beginEditing(_ occurrence: ScheduleOccurrence, scope: ScheduleEditScope) {
         editingOccurrenceID = occurrence.id
         editingScope = scope
+        isEditingRepeatedOccurrence = occurrence.templateID != nil
         draftTitle = occurrence.title
         draftDay = calendar.startOfDay(for: occurrence.plannedStart)
         draftStart = occurrence.plannedStart
         draftDuration = occurrence.plannedDurationMinutes
         draftRepeatRule = occurrence.templateID == nil ? .none : .weekly
-        isShowingMoreSettings = false
         withAnimation(.easeOut(duration: 0.16)) { isShowingForm = false }
     }
 
     private func commitForm() {
         let title = draftTitle.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !title.isEmpty else { return }
+        draftDuration = min(600, max(5, draftDuration))
         let plannedStart = ScheduleDateTime.combining(day: draftDay, time: draftStart, calendar: calendar)
         if let editingOccurrenceID {
             _ = schedule.update(
@@ -819,7 +982,7 @@ struct ScheduleWorkspaceView: View {
                 title: title,
                 plannedStart: plannedStart,
                 durationMinutes: draftDuration,
-                repeatRule: isShowingMoreSettings ? draftRepeatRule : nil,
+                repeatRule: draftRepeatRule,
                 scope: editingScope
             )
             showToast("已保存修改", icon: "checkmark")
@@ -828,7 +991,7 @@ struct ScheduleWorkspaceView: View {
                 title: title,
                 plannedStart: plannedStart,
                 durationMinutes: draftDuration,
-                repeatRule: isShowingMoreSettings ? draftRepeatRule : .none
+                repeatRule: draftRepeatRule
             )
             showToast("已添加日程", icon: "checkmark")
         }
@@ -839,31 +1002,14 @@ struct ScheduleWorkspaceView: View {
         isShowingForm = false
         editingOccurrenceID = nil
         editingScope = .thisOccurrence
-        isShowingMoreSettings = false
     }
 
     private func delete(_ occurrence: ScheduleOccurrence, scope: ScheduleEditScope) {
-        schedule.delete(occurrence.id, scope: scope)
-        let message = scope == .followingOccurrences ? "已删除后续日程" : "已删除日程"
-        if scope == .thisOccurrence, occurrence.templateID == nil {
-            deletedOneTimeOccurrence = occurrence
-            showToast(message, icon: "trash", actionTitle: "撤销")
-        } else {
-            deletedOneTimeOccurrence = nil
-            showToast(message, icon: "trash")
+        if scope == .followingOccurrences {
+            pendingSeriesDeletion = occurrence
+        } else if let restore = schedule.deleteOccurrenceWithUndo(occurrence.id) {
+            model.offerUndo("已删除日程", restore: restore)
         }
-    }
-
-    private func restoreDeletedOccurrence() {
-        guard let occurrence = deletedOneTimeOccurrence else { return }
-        _ = schedule.add(
-            title: occurrence.title,
-            plannedStart: occurrence.plannedStart,
-            durationMinutes: occurrence.plannedDurationMinutes,
-            repeatRule: .none
-        )
-        deletedOneTimeOccurrence = nil
-        withAnimation(.easeOut(duration: 0.16)) { toast = nil }
     }
 
     private func showToast(_ message: String, icon: String, actionTitle: String? = nil) {
@@ -871,7 +1017,6 @@ struct ScheduleWorkspaceView: View {
         withAnimation(.easeOut(duration: 0.16)) { toast = newToast }
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.4) {
             guard toast?.id == newToast.id else { return }
-            deletedOneTimeOccurrence = nil
             withAnimation(.easeIn(duration: 0.16)) { toast = nil }
         }
     }
@@ -889,8 +1034,13 @@ struct ScheduleWorkspaceView: View {
         } ?? dayOccurrences.first { $0.status == .planned }
     }
 
+    private var isPresentingStateOverlay: Bool {
+        selectedTab == .week && ((model.isShowingFocusDetail && runningOccurrence != nil)
+            || overdueOccurrence != nil || awaitingOccurrence != nil)
+    }
+
     private var runningOccurrence: ScheduleOccurrence? {
-        schedule.occurrences(on: Date()).first { $0.status == .running }
+        schedule.snapshot.occurrences.first { !$0.isDeleted && $0.status == .running }
     }
 
     private var overdueOccurrence: ScheduleOccurrence? {
@@ -949,7 +1099,7 @@ struct ScheduleWorkspaceView: View {
         case .overdueDecision: return .islandAmber
         case .completed: return .islandGreen
         case .skipped, .cancelled: return .white.opacity(0.45)
-        case .planned: return .white.opacity(0.48)
+        case .planned: return .white.opacity(0.62)
         }
     }
 
@@ -971,6 +1121,21 @@ struct ScheduleWorkspaceView: View {
         Self.timeFormatter.string(from: date)
     }
 
+    private func routineScheduleText(_ routine: ScheduleRoutine) -> String {
+        switch routine.reminderStyle {
+        case .interval:
+            return "每 \(routine.intervalMinutes) 分钟"
+        case .dailyTime:
+            let minutes = routine.dailyTimeMinutes ?? (9 * 60)
+            return "每天 \(String(format: "%02d:%02d", minutes / 60, minutes % 60))"
+        }
+    }
+
+    private func minutesAfterMidnight(_ date: Date) -> Int {
+        let components = calendar.dateComponents([.hour, .minute], from: date)
+        return (components.hour ?? 0) * 60 + (components.minute ?? 0)
+    }
+
     private func fullDateText(for date: Date) -> String {
         Self.dateFormatter.string(from: date)
     }
@@ -982,16 +1147,10 @@ struct ScheduleWorkspaceView: View {
         return calendar.date(from: components) ?? day
     }
 
-    private var panelBackground: some View {
-        RoundedRectangle(cornerRadius: 24, style: .continuous)
-            .fill(Color(red: 0.055, green: 0.065, blue: 0.07).opacity(0.99))
-            .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).stroke(Color.white.opacity(0.2), lineWidth: 1))
-    }
-
     private func fieldLabel(_ text: String) -> some View {
         Text(text)
-            .font(.system(size: 11.5))
-            .foregroundStyle(.white.opacity(0.48))
+            .font(.system(size: 12))
+            .foregroundStyle(.white.opacity(0.65))
     }
 
     private func toastView(_ toast: Toast) -> some View {
@@ -999,13 +1158,7 @@ struct ScheduleWorkspaceView: View {
             Label(toast.message, systemImage: toast.icon)
                 .font(.system(size: 12.5, weight: .medium))
                 .foregroundStyle(.white.opacity(0.9))
-            if toast.actionTitle != nil, deletedOneTimeOccurrence != nil {
-                Button("撤销", action: restoreDeletedOccurrence)
-                    .font(.system(size: 12.5, weight: .semibold))
-                    .foregroundStyle(Color.islandBlue)
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("撤销删除日程")
-            }
+
         }
         .padding(.horizontal, 12)
         .frame(height: 32)
@@ -1050,6 +1203,7 @@ private extension ScheduleRoutineKind {
         switch self {
         case .hydration: return "喝水"
         case .activity: return "起身活动"
+        case .custom: return "自定义提醒"
         }
     }
 
@@ -1057,6 +1211,7 @@ private extension ScheduleRoutineKind {
         switch self {
         case .hydration: return "drop"
         case .activity: return "figure.stand"
+        case .custom: return "bell"
         }
     }
 }

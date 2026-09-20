@@ -53,11 +53,13 @@ public struct ScheduleOccurrenceReminder: Equatable, Sendable {
 public struct ScheduleRoutineReminder: Equatable, Sendable {
     public var routineID: UUID
     public var kind: ScheduleRoutineKind
+    public var title: String
     public var remindedAt: Date
 
-    public init(routineID: UUID, kind: ScheduleRoutineKind, remindedAt: Date) {
+    public init(routineID: UUID, kind: ScheduleRoutineKind, title: String? = nil, remindedAt: Date) {
         self.routineID = routineID
         self.kind = kind
+        self.title = title ?? kind.defaultTitle
         self.remindedAt = remindedAt
     }
 }
@@ -95,9 +97,11 @@ public final class ScheduleReminderEngine {
     private var overdueDecisionStarts: [String: Date] = [:]
     private var routineReferenceDates: [UUID: Date] = [:]
     private var deferredRoutines: [UUID: ScheduleRoutineReminder] = [:]
+    private var calendar: Calendar
 
-    public init(maximumContinuousTickGap: TimeInterval = 60) {
+    public init(maximumContinuousTickGap: TimeInterval = 60, calendar: Calendar = .current) {
         self.maximumContinuousTickGap = max(1, maximumContinuousTickGap)
+        self.calendar = calendar
     }
 
     /// Returns effects that are due exactly in the continuously observed time
@@ -205,13 +209,14 @@ public final class ScheduleReminderEngine {
             var combined = Array(deferredRoutines.values)
             let deferredIDs = Set(combined.map(\.routineID))
             combined.append(contentsOf: dueRoutineReminders.filter { !deferredIDs.contains($0.routineID) })
-            combined.sort { lhs, rhs in lhs.kind.rawValue < rhs.kind.rawValue }
+            combined.sort { lhs, rhs in lhs.title < rhs.title }
             deferredRoutines.removeAll()
             if !combined.isEmpty {
                 combined = combined.map {
                     ScheduleRoutineReminder(
                         routineID: $0.routineID,
                         kind: $0.kind,
+                        title: $0.title,
                         remindedAt: input.now
                     )
                 }
@@ -256,8 +261,20 @@ public final class ScheduleReminderEngine {
     private func dueRoutines(in input: ScheduleReminderTick, at now: Date) -> [ScheduleRoutineReminder] {
         input.routines
             .filter(\.isEnabled)
-            .sorted { lhs, rhs in lhs.kind.rawValue < rhs.kind.rawValue }
+            .sorted { lhs, rhs in lhs.displayTitle < rhs.displayTitle }
             .compactMap { routine in
+                if routine.reminderStyle == .dailyTime {
+                    guard let scheduledTime = dailyReminderTime(for: routine, on: now),
+                          crosses(scheduledTime, from: lastTickAt ?? now, to: now),
+                          !wasRemindedOnSameDay(routine, as: now)
+                    else { return nil }
+                    return ScheduleRoutineReminder(
+                        routineID: routine.id,
+                        kind: routine.kind,
+                        title: routine.displayTitle,
+                        remindedAt: now
+                    )
+                }
                 let inMemoryReference = routineReferenceDates[routine.id] ?? now
                 let reference = max(inMemoryReference, routine.lastRemindedAt ?? .distantPast)
                 let interval = TimeInterval(routine.intervalMinutes * 60)
@@ -265,6 +282,7 @@ public final class ScheduleReminderEngine {
                 return ScheduleRoutineReminder(
                     routineID: routine.id,
                     kind: routine.kind,
+                    title: routine.displayTitle,
                     remindedAt: now
                 )
             }
@@ -278,5 +296,19 @@ public final class ScheduleReminderEngine {
 
     private func crosses(_ instant: Date, from previousTick: Date, to now: Date) -> Bool {
         instant > previousTick && instant <= now
+    }
+
+    private func dailyReminderTime(for routine: ScheduleRoutine, on date: Date) -> Date? {
+        guard let minutes = routine.dailyTimeMinutes else { return nil }
+        var components = calendar.dateComponents([.year, .month, .day], from: date)
+        components.hour = minutes / 60
+        components.minute = minutes % 60
+        components.second = 0
+        return calendar.date(from: components)
+    }
+
+    private func wasRemindedOnSameDay(_ routine: ScheduleRoutine, as date: Date) -> Bool {
+        guard let lastRemindedAt = routine.lastRemindedAt else { return false }
+        return calendar.isDate(lastRemindedAt, inSameDayAs: date)
     }
 }

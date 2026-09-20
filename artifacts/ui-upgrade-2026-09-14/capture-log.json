@@ -1,0 +1,186 @@
+[
+  {
+    "scenario": "activity-main",
+    "width": 534,
+    "height": 474,
+    "windowID": 91345,
+    "file": "screenshots/activity-main.png",
+    "status": "captured"
+  },
+  {
+    "width": 534,
+    "height": 474,
+    "scenario": "activity-warning",
+    "windowID": 91354,
+    "file": "screenshots/activity-warning.png",
+    "status": "captured"
+  },
+  {
+    "windowID": 92449,
+    "scenario": "notes-main",
+    "height": 474,
+    "width": 534,
+    "file": "screenshots/notes-main.png",
+    "status": "captured"
+  },
+  {
+    "windowID": 91409,
+    "width": 534,
+    "scenario": "schedule-new-filled",
+    "height": 474,
+    "file": "screenshots/schedule-new-filled.png",
+    "status": "captured"
+  },
+  {
+    "width": 534,
+    "height": 474,
+    "scenario": "schedule-routine-daily",
+    "windowID": 91484,
+    "file": "screenshots/schedule-routine-daily.png",
+    "status": "captured"
+  },
+  {
+    "windowID": 91601,
+    "height": 474,
+    "scenario": "schedule-running",
+    "width": 534,
+    "file": "screenshots/schedule-running.png",
+    "status": "captured"
+  },
+  {
+    "windowID": 91516,
+    "height": 506,
+    "width": 534,
+    "scenario": "settings-voice",
+    "file": "screenshots/settings-voice.png",
+    "status": "captured"
+  },
+  {
+    "windowID": 91525,
+    "height": 506,
+    "width": 534,
+    "scenario": "settings-general",
+    "file": "screenshots/settings-general.png",
+    "status": "captured"
+  },
+  {
+    "scenario": "activity-empty",
+    "windowID": 91361,
+    "width": 534,
+    "height": 474,
+    "file": "screenshots/activity-empty.png",
+    "status": "captured"
+  },
+  {
+    "height": 474,
+    "windowID": 91370,
+    "width": 534,
+    "scenario": "activity-completed",
+    "file": "screenshots/activity-completed.png",
+    "status": "captured"
+  },
+  {
+    "width": 534,
+    "height": 474,
+    "windowID": 91386,
+    "scenario": "notes-new",
+    "file": "screenshots/notes-new.png",
+    "status": "captured"
+  },
+  {
+    "width": 534,
+    "windowID": 91393,
+    "height": 474,
+    "scenario": "notes-many",
+    "file": "screenshots/notes-many.png",
+    "status": "captured"
+  },
+  {
+    "windowID": 91402,
+    "height": 474,
+    "scenario": "schedule-main",
+    "width": 534,
+    "file": "screenshots/schedule-main.png",
+    "status": "captured"
+  },
+  {
+    "windowID": 91422,
+    "height": 474,
+    "width": 534,
+    "scenario": "schedule-edit",
+    "file": "screenshots/schedule-edit.png",
+    "status": "captured"
+  },
+  {
+    "width": 534,
+    "height": 474,
+    "windowID": 91618,
+    "scenario": "schedule-awaiting",
+    "file": "screenshots/schedule-awaiting.png",
+    "status": "captured"
+  },
+  {
+    "scenario": "schedule-overdue",
+    "width": 534,
+    "height": 474,
+    "windowID": 91611,
+    "file": "screenshots/schedule-overdue.png",
+    "status": "captured"
+  },
+  {
+    "height": 474,
+    "width": 534,
+    "scenario": "schedule-adjust",
+    "windowID": 91459,
+    "file": "screenshots/schedule-adjust.png",
+    "status": "captured"
+  },
+  {
+    "scenario": "schedule-routine",
+    "windowID": 91468,
+    "width": 534,
+    "height": 474,
+    "file": "screenshots/schedule-routine.png",
+    "status": "captured"
+  },
+  {
+    "windowID": 91477,
+    "width": 534,
+    "scenario": "schedule-routine-new",
+    "height": 474,
+    "file": "screenshots/schedule-routine-new.png",
+    "status": "captured"
+  },
+  {
+    "scenario": "schedule-routine-edit",
+    "width": 534,
+    "windowID": 91493,
+    "height": 474,
+    "file": "screenshots/schedule-routine-edit.png",
+    "status": "captured"
+  },
+  {
+    "width": 534,
+    "windowID": 91500,
+    "scenario": "settings-features",
+    "height": 506,
+    "file": "screenshots/settings-features.png",
+    "status": "captured"
+  },
+  {
+    "width": 534,
+    "windowID": 91509,
+    "height": 506,
+    "scenario": "settings-display",
+    "file": "screenshots/settings-display.png",
+    "status": "captured"
+  },
+  {
+    "height": 506,
+    "scenario": "settings-privacy",
+    "windowID": 91533,
+    "width": 534,
+    "file": "screenshots/settings-privacy.png",
+    "status": "captured"
+  }
+]

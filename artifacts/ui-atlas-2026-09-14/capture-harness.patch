@@ -1,0 +1,321 @@
+--- original/Sources/CodexIsland/AppDelegate.swift
++++ capture-copy/Sources/CodexIsland/AppDelegate.swift
+@@ -1,158 +1,75 @@
+ import AppKit
+-import Carbon.HIToolbox
+-import Combine
+ import SwiftUI
++import Foundation
+ 
+-@MainActor
+-private enum ApplicationInstanceGuard {
+-    static func shouldContinueLaunching() -> Bool {
+-        // Unit tests run inside the app bundle. They are an isolated test host,
+-        // not a second user launch, so the normal single-instance rule must
+-        // not terminate them when Halofold is already open.
+-        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {
+-            return true
+-        }
+-        guard let bundleIdentifier = Bundle.main.bundleIdentifier else { return true }
+-        let currentPID = ProcessInfo.processInfo.processIdentifier
+-        let running = NSRunningApplication.runningApplications(withBundleIdentifier: bundleIdentifier)
+-        guard let primary = running.min(by: { left, right in
+-            let leftDate = left.launchDate ?? .distantFuture
+-            let rightDate = right.launchDate ?? .distantFuture
+-            if leftDate != rightDate { return leftDate < rightDate }
+-            return left.processIdentifier < right.processIdentifier
+-        }), primary.processIdentifier != currentPID else {
+-            return true
+-        }
+-        primary.activate(options: [])
+-        return false
++enum Atlas {
++    static let scenario = ProcessInfo.processInfo.environment["ATLAS_SCENARIO"] ?? "activity-main"
++}
++@main struct AtlasMain {
++    @MainActor static func main() {
++        let app = NSApplication.shared
++        let delegate = AtlasDelegate()
++        app.delegate = delegate
++        app.run()
++        _ = delegate
+     }
+ }
+-
+-@MainActor
+-final class AppEnvironment {
+-    static let shared = AppEnvironment()
+-    let model = ApplicationModel()
+-}
+-
+-@main
+-struct CodexIslandApp: App {
+-    @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
+-
+-    var body: some Scene {
+-        Settings { EmptyView() }
++@MainActor final class AtlasDelegate: NSObject, NSApplicationDelegate {
++    var window: NSWindow!
++    var model: ApplicationModel!
++    func applicationDidFinishLaunching(_ notification: Notification) {
++        NSApp.setActivationPolicy(.regular)
++        let prefs = UserDefaults(suiteName: "local.halofold.ui-atlas.fixtures")!
++        model = ApplicationModel(settings: AppSettings(defaults: prefs))
++        model.atlasConfigure(Atlas.scenario)
++        if Atlas.scenario == "notes-new" { model.notes.createNote() }
++        if Atlas.scenario == "notes-many" {
++            for title in ["一个较长的便签标题：产品交互体验与视觉改进计划", "设计参考", "灵感收集", "待办事项", "会议记录", "下周安排"] { model.notes.createNote(title: title) }
++        }
++        let schedule = model.schedule
++        let now = Date()
++        if Atlas.scenario.hasPrefix("schedule-"), Atlas.scenario != "schedule-empty", Atlas.scenario != "schedule-new", Atlas.scenario != "schedule-new-filled" {
++            let item = schedule.add(title: "整理本周产品反馈", plannedStart: now.addingTimeInterval(1800), durationMinutes: 45)
++            schedule.add(title: "阅读与学习", plannedStart: now.addingTimeInterval(5400), durationMinutes: 30, repeatRule: .weekly)
++            schedule.addCustomRoutine(title: "回顾今天的工作", reminderStyle: .dailyTime, dailyTimeMinutes: 1260)
++            switch Atlas.scenario {
++            case "schedule-awaiting": schedule.markAwaitingStart(item.id)
++            case "schedule-overdue", "schedule-adjust": schedule.markAwaitingStart(item.id); schedule.markOverdueDecision(item.id)
++            case "schedule-running": schedule.start(item.id, at: now.addingTimeInterval(-300))
++            case "schedule-completed": schedule.start(item.id, at: now.addingTimeInterval(-2700)); schedule.complete(item.id)
++            default: break
++            }
++        }
++        var content: AnyView
++        if Atlas.scenario.hasPrefix("collapsed-") {
++            model.settings.collapsedLayoutMode = Atlas.scenario == "collapsed-compact" ? .compact : .relaxed
++            content = AnyView(HStack(spacing: 0) {
++                IslandView(model: model, presentation: .leftWing)
++                Color.black.frame(width: 185, height: 32)
++                IslandView(model: model, presentation: .rightWing)
++            }.fixedSize().padding(12))
++        } else {
++            content = AnyView(IslandView(model: model, presentation: .expandedContent).padding(12))
++        }
++        let host = NSHostingView(rootView: content)
++        let size = host.fittingSize
++        window = NSWindow(contentRect: NSRect(origin: .zero, size: size), styleMask: [.borderless], backing: .buffered, defer: false)
++        window.title = "Halofold UI Atlas"
++        window.isReleasedWhenClosed = false
++        window.isOpaque = false
++        window.backgroundColor = .clear
++        window.hasShadow = true
++        window.level = .floating
++        window.contentView = host
++        window.center()
++        window.makeKeyAndOrderFront(nil)
++        NotificationCenter.default.addObserver(forName: .showCodexIslandSettings, object: nil, queue: .main) { [weak self] _ in self?.model.showSettings() }
++        NSApp.activate(ignoringOtherApps: true)
++        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [self] in
++            let path = ProcessInfo.processInfo.environment["ATLAS_READY"]!
++            let info: [String: Any] = ["windowID": window.attachedSheet?.windowNumber ?? window.windowNumber, "scenario": Atlas.scenario, "width": window.frame.width, "height": window.frame.height]
++            let data = try! JSONSerialization.data(withJSONObject: info)
++            try! data.write(to: URL(fileURLWithPath: path))
++        }
+     }
+ }
+-
+-@MainActor
+-final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
+-    private lazy var model = AppEnvironment.shared.model
+-    private var didStartModel = false
+-    private var islandController: IslandWindowController?
+-    private var statusItem: NSStatusItem?
+-    private var quickNoteHotKey: GlobalHotKey?
+-    private var cancellables: Set<AnyCancellable> = []
+-
+-    func applicationDidFinishLaunching(_ notification: Notification) {
+-        guard ApplicationInstanceGuard.shouldContinueLaunching() else {
+-            NSApp.terminate(nil)
+-            return
+-        }
+-        NSApp.setActivationPolicy(.accessory)
+-        setupMenuBar()
+-        islandController = IslandWindowController(model: model)
+-        islandController?.updateVisibility()
+-        quickNoteHotKey = GlobalHotKey(
+-            keyCode: UInt32(kVK_Space),
+-            modifiers: UInt32(cmdKey | shiftKey)
+-        ) { [weak self] in
+-            guard self?.model.settings.isEnabled(.quickNotes) == true else { return }
+-            self?.islandController?.presentNewNote()
+-        }
+-        model.start()
+-        didStartModel = true
+-        if ProcessInfo.processInfo.arguments.contains("--settings-demo") {
+-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
+-                self?.islandController?.showSettings()
+-            }
+-        } else if ProcessInfo.processInfo.arguments.contains("--notes-demo") {
+-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) { [weak self] in
+-                self?.islandController?.showNotesWorkspace()
+-            }
+-        } else if ProcessInfo.processInfo.arguments.contains("--activity-demo") {
+-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
+-                self?.islandController?.showActivityWorkspace()
+-            }
+-        } else if ProcessInfo.processInfo.arguments.contains("--workspace-motion-demo") {
+-            islandController?.showNotesWorkspace()
+-            DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
+-                self?.model.showActivityWorkspace()
+-            }
+-        }
+-
+-        model.objectWillChange
+-            .debounce(for: .milliseconds(120), scheduler: RunLoop.main)
+-            .sink { [weak self] _ in self?.refreshMenu() }
+-            .store(in: &cancellables)
+-
+-        NotificationCenter.default.publisher(for: .showCodexIslandSettings)
+-            .sink { [weak self] _ in self?.islandController?.showSettings() }
+-            .store(in: &cancellables)
+-    }
+-
+-    func applicationWillTerminate(_ notification: Notification) {
+-        if didStartModel { model.stop() }
+-    }
+-
+-    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
+-
+-    private func setupMenuBar() {
+-        let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+-        item.button?.image = NSImage(systemSymbolName: "capsule.tophalf.filled", accessibilityDescription: "Halofold")
+-        item.button?.image?.isTemplate = true
+-        item.menu = NSMenu()
+-        item.menu?.delegate = self
+-        statusItem = item
+-        refreshMenu()
+-    }
+-
+-    func menuWillOpen(_ menu: NSMenu) { refreshMenu() }
+-
+-    private func refreshMenu() {
+-        guard let menu = statusItem?.menu else { return }
+-        menu.removeAllItems()
+-        let summary = NSMenuItem(
+-            title: AppLocalization.format(
+-                "运行中 %lld   待处理 %lld   完成 %lld   中断 %lld",
+-                Int64(model.runningCount), Int64(model.needsActionCount), Int64(model.completedCount), Int64(model.pausedCount)
+-            ),
+-            action: nil,
+-            keyEquivalent: ""
+-        )
+-        summary.isEnabled = false
+-        menu.addItem(summary)
+-        menu.addItem(.separator())
+-        if model.settings.isEnabled(.quickNotes) {
+-            let newNote = menu.addItem(withTitle: AppLocalization.text("新建便签"), action: #selector(newNoteAction), keyEquivalent: " ")
+-            newNote.keyEquivalentModifierMask = [.command, .shift]
+-        }
+-        menu.addItem(withTitle: AppLocalization.text(model.isExpanded ? "收起灵动岛" : "展开灵动岛"), action: #selector(toggleExpanded), keyEquivalent: "")
+-        menu.addItem(withTitle: AppLocalization.text("显示 / 隐藏灵动岛"), action: #selector(toggleIslandVisibility), keyEquivalent: "")
+-        menu.addItem(withTitle: AppLocalization.text("设置…"), action: #selector(showSettingsAction), keyEquivalent: ",")
+-        menu.addItem(.separator())
+-        menu.addItem(withTitle: AppLocalization.text("退出 Halofold"), action: #selector(quit), keyEquivalent: "q")
+-        for item in menu.items { item.target = self }
+-    }
+-
+-    @objc private func toggleExpanded() {
+-        model.toggleExpanded()
+-        islandController?.updateVisibility()
+-    }
+-
+-    @objc private func newNoteAction() {
+-        islandController?.presentNewNote()
+-    }
+-
+-    @objc private func toggleIslandVisibility() { islandController?.toggleUserVisibility() }
+-    @objc private func showSettingsAction() { islandController?.showSettings() }
+-    @objc private func quit() { NSApp.terminate(nil) }
+-}
+--- original/Sources/CodexIsland/Core/ApplicationModel.swift
++++ capture-copy/Sources/CodexIsland/Core/ApplicationModel.swift
+@@ -55,7 +55,7 @@
+     ) {
+         let settings = suppliedSettings ?? AppSettings()
+         self.settings = settings
+-        self.notes = NoteLibraryModel()
++        self.notes = NoteLibraryModel(demoMode: true)
+         self.schedule = ScheduleLibraryModel()
+         self.persistence = persistence
+         self.eventSource = eventSource
+@@ -696,3 +696,19 @@
+         }
+     }
+ }
++
++@MainActor extension ApplicationModel {
++    func atlasConfigure(_ scenario: String) {
++        loadDemoData()
++        expandedWorkspace = .activity
++        hasCodexFolderAccess = true
++        isExpanded = true
++        isShowingSettings = scenario.hasPrefix("settings-")
++        if scenario.hasPrefix("notes-") { expandedWorkspace = .notes }
++        if scenario.hasPrefix("schedule-") { expandedWorkspace = .schedule }
++        if ["activity-completed", "activity-paused", "activity-action", "activity-summary"].contains(scenario) { conversations.removeAll { $0.state == .running } }
++        if scenario == "activity-empty" { conversations = [] }
++        if scenario == "activity-warning" { setSourceMessage("无法连接 Codex 本地数据，请检查访问授权", warning: true) }
++        if scenario == "settings-permission" { hasCodexFolderAccess = false }
++    }
++}
+--- original/Sources/CodexIsland/UI/IslandView.swift
++++ capture-copy/Sources/CodexIsland/UI/IslandView.swift
+@@ -50,7 +50,7 @@
+         self.presentation = presentation
+         _settings = ObservedObject(wrappedValue: model.settings)
+         _expandedResultState = State(initialValue:
+-            ProcessInfo.processInfo.arguments.contains("--completed-list-demo") ? .completed : nil
++            Atlas.scenario == "activity-completed" ? .completed : (Atlas.scenario == "activity-paused" ? .paused : (Atlas.scenario == "activity-action" ? .needsAction : nil))
+         )
+     }
+ 
+--- original/Sources/CodexIsland/UI/SettingsView.swift
++++ capture-copy/Sources/CodexIsland/UI/SettingsView.swift
+@@ -13,6 +13,9 @@
+     init(model: ApplicationModel) {
+         self.model = model
+         _settings = ObservedObject(wrappedValue: model.settings)
++        let suffix = Atlas.scenario == "settings-funvoice" ? "voice" : (Atlas.scenario == "settings-privacy" ? "general" : Atlas.scenario.replacingOccurrences(of: "settings-", with: ""))
++        if let section = SettingsSection(rawValue: suffix) { _selection = State(initialValue: section) }
++
+         if ProcessInfo.processInfo.arguments.contains("--voice-settings-demo") {
+             _selection = State(initialValue: .voice)
+         } else if ProcessInfo.processInfo.arguments.contains("--general-settings-demo") {
+@@ -57,6 +60,7 @@
+                 .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).stroke(Color.white.opacity(0.2), lineWidth: 1))
+         )
+         .environment(\.colorScheme, .dark)
++        .onAppear { if Atlas.scenario == "settings-privacy" { isShowingPrivacyPolicy = true } }
+         .sheet(isPresented: $isShowingPrivacyPolicy) {
+             privacyPolicySheet
+         }
+@@ -429,6 +433,7 @@
+             model.cancelAlertRecording()
+             feedback = AppLocalization.text("已取消录音，原提醒音保持不变")
+         }
++        .onAppear { if Atlas.scenario == "settings-funvoice" { funVoiceTarget = FunVoiceTarget(kind: .completed) } }
+         .sheet(item: $funVoiceTarget) { target in
+             FunVoiceComposerSheet(
+                 model: model,
+--- original/Sources/CodexIsland/UI/ScheduleWorkspaceView.swift
++++ capture-copy/Sources/CodexIsland/UI/ScheduleWorkspaceView.swift
+@@ -87,6 +87,19 @@
+         .environment(\.colorScheme, .dark)
+         .animation(.easeOut(duration: 0.16), value: selectedTab)
+         .animation(.easeOut(duration: 0.16), value: isShowingForm)
++        .onAppear {
++            switch Atlas.scenario {
++            case "schedule-new": beginAdding()
++            case "schedule-new-filled": beginAdding(); draftTitle = "整理本周产品反馈"; isShowingMoreSettings = true
++            case "schedule-edit": if let item = schedule.occurrences(on: schedule.selectedDate).first { beginEditing(item, scope: .thisOccurrence) }
++            case "schedule-adjust": if let item = schedule.occurrences(on: schedule.selectedDate).first { editingOccurrenceID = item.id; adjustmentStart = item.plannedStart; isShowingTimeAdjustment = true }
++            case "schedule-routine": selectedTab = .routine
++            case "schedule-routine-new": selectedTab = .routine; beginAddingRoutine()
++            case "schedule-routine-daily": selectedTab = .routine; beginAddingRoutine(); routineDraftTitle = "回顾今天的工作"; routineDraftStyle = .dailyTime
++            case "schedule-routine-edit": selectedTab = .routine; if let item = schedule.snapshot.routines.first(where: { $0.kind == .custom }) { beginEditingRoutine(item) }
++            default: break
++            }
++        }
+         .sheet(isPresented: $isShowingTimeAdjustment) {
+             timeAdjustmentSheet
+         }

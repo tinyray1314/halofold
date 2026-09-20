@@ -12,6 +12,53 @@ final class ScheduleLibraryTests: XCTestCase {
         calendar.timeZone = TimeZone(secondsFromGMT: 0)!
     }
 
+    func testUndoCompletedScheduleRestoresFocusHistoryAndKeepsOtherChanges() throws {
+        let model = makeModel()
+        let start = date(2026, 9, 14, 10, 0)
+        let item = model.add(title: "专注记录", plannedStart: start, durationMinutes: 45)
+        model.start(item.id, at: start)
+        model.extend(item.id, now: start.addingTimeInterval(600))
+        model.complete(item.id, at: start.addingTimeInterval(900))
+        let original = try XCTUnwrap(model.occurrences(on: start).first)
+        let undo = try XCTUnwrap(model.deleteOccurrenceWithUndo(item.id))
+        let added = model.add(title: "后来增加", plannedStart: start.addingTimeInterval(3600), durationMinutes: 30)
+        undo()
+        XCTAssertEqual(model.occurrences(on: start).first(where: { $0.id == item.id }), original)
+        XCTAssertTrue(model.occurrences(on: start).contains(where: { $0.id == added.id }))
+    }
+
+    func testUndoGeneratedAndModifiedRepeatingOccurrences() throws {
+        let model = makeModel()
+        let start = date(2026, 9, 14, 10, 0)
+        let item = model.add(title: "每周复盘", plannedStart: start, durationMinutes: 30, repeatRule: .weekly)
+        let undoGenerated = try XCTUnwrap(model.deleteOccurrenceWithUndo(item.id))
+        XCTAssertTrue(model.occurrences(on: start).isEmpty)
+        undoGenerated()
+        XCTAssertEqual(model.occurrences(on: start).first?.id, item.id)
+        _ = model.update(item.id, title: "本次调整", durationMinutes: 45)
+        let modified = try XCTUnwrap(model.occurrences(on: start).first)
+        let undoModified = try XCTUnwrap(model.deleteOccurrenceWithUndo(item.id))
+        undoModified()
+        XCTAssertEqual(model.occurrences(on: start).first, modified)
+    }
+
+    func testUndoRoutineRestoresIdentityAndTime() throws {
+        let model = makeModel()
+        let item = try XCTUnwrap(model.addCustomRoutine(title: "每日复盘", reminderStyle: .dailyTime, dailyTimeMinutes: 1260))
+        let undo = try XCTUnwrap(model.deleteRoutineWithUndo(item.id))
+        XCTAssertFalse(model.snapshot.routines.contains(where: { $0.id == item.id }))
+        undo()
+        XCTAssertEqual(model.snapshot.routines.first(where: { $0.id == item.id }), item)
+    }
+
+    func testSuggestedStartUsesUpcomingTimeAndRollsMidnightExplicitly() {
+        let now = date(2026, 9, 14, 16, 32)
+        XCTAssertEqual(ScheduleDateTime.suggestedStart(on: now, now: now, calendar: calendar), date(2026, 9, 14, 16, 35))
+        let late = date(2026, 9, 14, 23, 58)
+        XCTAssertEqual(ScheduleDateTime.suggestedStart(on: late, now: late, calendar: calendar), date(2026, 9, 15, 0, 0))
+        XCTAssertEqual(ScheduleDateTime.suggestedStart(on: date(2026, 9, 16, 0, 0), now: now, calendar: calendar), date(2026, 9, 16, 9, 0))
+    }
+
     func testAddUpdateAndDeleteOneTimeOccurrence() throws {
         let model = makeModel()
         let start = date(2026, 8, 26, 10, 0)
@@ -145,6 +192,39 @@ final class ScheduleLibraryTests: XCTestCase {
         XCTAssertEqual(hydration.intervalMinutes, 45)
         XCTAssertFalse(hydration.isEnabled)
         XCTAssertEqual(activity.lastRemindedAt, date(2026, 8, 26, 10, 20))
+    }
+
+    func testCustomRoutineSupportsDailyTimeAndPersists() throws {
+        let file = temporaryFile()
+        let store = SchedulePersistenceStore(fileURL: file)
+        let model = ScheduleLibraryModel(store: store, selectedDate: date(2026, 8, 26, 9, 0), calendar: calendar)
+
+        let added = try XCTUnwrap(model.addCustomRoutine(
+            title: "点外卖",
+            reminderStyle: .dailyTime,
+            dailyTimeMinutes: 11 * 60 + 30,
+            now: date(2026, 8, 26, 9, 0)
+        ))
+        XCTAssertEqual(added.displayTitle, "点外卖")
+        XCTAssertEqual(added.reminderStyle, .dailyTime)
+        XCTAssertEqual(added.dailyTimeMinutes, 11 * 60 + 30)
+
+        XCTAssertTrue(model.updateCustomRoutine(
+            added.id,
+            title: "订午饭",
+            reminderStyle: .interval,
+            intervalMinutes: 45,
+            dailyTimeMinutes: nil,
+            now: date(2026, 8, 26, 9, 5)
+        ))
+        model.flush()
+
+        let restored = ScheduleLibraryModel(store: store, selectedDate: date(2026, 8, 26, 9, 0), calendar: calendar)
+        let routine = try XCTUnwrap(restored.snapshot.routines.first(where: { $0.id == added.id }))
+        XCTAssertEqual(routine.displayTitle, "订午饭")
+        XCTAssertEqual(routine.reminderStyle, .interval)
+        XCTAssertEqual(routine.intervalMinutes, 45)
+        XCTAssertNil(routine.dailyTimeMinutes)
     }
 
     func testRestartRoundTripRestoresPlansAndActualExecution() throws {

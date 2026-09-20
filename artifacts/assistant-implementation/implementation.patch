@@ -1,0 +1,728 @@
+--- before/Core/Models.swift
++++ after/Core/Models.swift
+@@ -128,6 +128,7 @@
+ }
+ 
+ enum ExpandedWorkspace: String, Codable, Sendable {
++    case now
+     case notes
+     case activity
+     case schedule
+@@ -155,8 +156,8 @@
+ 
+     var leftWingWidth: Double {
+         switch self {
+-        case .compact: return 258
+-        case .relaxed: return 274
++        case .compact: return 132
++        case .relaxed: return 166
+         }
+     }
+ 
+--- before/Core/ApplicationModel.swift
++++ after/Core/ApplicationModel.swift
+@@ -21,6 +21,7 @@
+     @Published private(set) var isPresentingSystemPermissionPrompt = false
+     @Published var isExpanded = false
+     @Published var isShowingSettings = false
++    @Published var isNotesEditorPresented = false
+     @Published var expandedWorkspace: ExpandedWorkspace = .activity {
+         didSet { UserDefaults.standard.set(expandedWorkspace.rawValue, forKey: "expandedWorkspace.v1") }
+     }
+@@ -291,6 +292,7 @@
+ 
+     private func isWorkspaceEnabled(_ workspace: ExpandedWorkspace) -> Bool {
+         switch workspace {
++        case .now: return settings.hasEnabledFeatures
+         case .notes: return settings.isEnabled(.quickNotes)
+         case .activity: return settings.isEnabled(.codexFollowUp)
+         case .schedule: return settings.isEnabled(.schedule)
+@@ -325,7 +327,37 @@
+         saveNow()
+     }
+ 
++    func showQuickPanel() {
++        NSApp.keyWindow?.makeFirstResponder(nil)
++        notes.flush()
++        isShowingSettings = false
++        isNotesEditorPresented = false
++        expandedWorkspace = .now
++        isExpanded = true
++    }
++
++    func expandNoteEditor() {
++        guard settings.isEnabled(.quickNotes) else { return }
++        NSApp.keyWindow?.makeFirstResponder(nil)
++        notes.flush()
++        isExpanded = false
++        isNotesEditorPresented = true
++    }
++
++    func returnToQuickPanel() {
++        NSApp.keyWindow?.makeFirstResponder(nil)
++        notes.flush()
++        isNotesEditorPresented = false
++        showQuickPanel()
++    }
++
+     func toggleExpanded() {
++        NSApp.keyWindow?.makeFirstResponder(nil)
++        notes.flush()
++        if !isExpanded {
++            showQuickPanel()
++            return
++        }
+         if isShowingSettings {
+             isShowingSettings = false
+             isExpanded = false
+--- before/UI/IslandView.swift
++++ after/UI/IslandView.swift
+@@ -36,6 +36,7 @@
+ 
+ struct IslandView: View {
+     @ObservedObject var model: ApplicationModel
++    @ObservedObject var schedule: ScheduleLibraryModel
+     @ObservedObject var settings: AppSettings
+     let presentation: IslandPresentation
+     @State private var isConfirmingQuit = false
+@@ -50,6 +51,7 @@
+     ) {
+         self.model = model
+         self.presentation = presentation
++        _schedule = ObservedObject(wrappedValue: model.schedule)
+         _settings = ObservedObject(wrappedValue: model.settings)
+         _expandedResultState = State(initialValue:
+             ProcessInfo.processInfo.arguments.contains("--completed-list-demo") ? .completed : nil
+@@ -112,23 +114,36 @@
+ 
+     @ViewBuilder
+     private var taskStatusWing: some View {
+-        if settings.isEnabled(.taskStatus) {
+-            HStack(spacing: settings.collapsedLayoutMode == .compact ? 6 : 8) {
+-                notchMetric(color: .islandGreen, icon: nil, label: AppLocalization.text(settings.collapsedLayoutMode == .compact ? "运行" : "运行中"), value: model.runningCount)
+-                notchMetric(color: .islandBlue, icon: "hand.raised.fill", label: AppLocalization.text("待办"), value: model.needsActionCount)
+-                notchMetric(color: .white.opacity(0.92), icon: "checkmark", label: AppLocalization.text("完成"), value: model.completedCount)
+-                notchMetric(color: .islandAmber, icon: "exclamationmark", label: AppLocalization.text("中断"), value: model.pausedCount)
+-            }
+-            .padding(.leading, settings.collapsedLayoutMode == .compact ? 11 : 14)
+-            .padding(.trailing, settings.collapsedLayoutMode.notchContentSafetyInset)
+-            .frame(maxWidth: .infinity, alignment: .leading)
+-        }
++        HStack(spacing: 7) {
++            if settings.isEnabled(.codexFollowUp), settings.isEnabled(.taskStatus), model.needsActionCount > 0 {
++                Image(systemName: "hand.raised.fill").foregroundStyle(Color.islandMint)
++                Text("待处理 \(model.needsActionCount)")
++            } else if settings.isEnabled(.codexFollowUp), settings.isEnabled(.taskStatus), model.runningCount > 0 {
++                Circle().fill(Color.islandMint).frame(width: 6, height: 6)
++                Text("进行中 \(model.runningCount)")
++            } else {
++                Image(systemName: "square.grid.2x2").foregroundStyle(Color.islandMint)
++                Text("随手记")
++            }
++        }
++        .font(.system(size: 12, weight: .medium))
++        .padding(.leading, 14)
++        .padding(.trailing, settings.collapsedLayoutMode.notchContentSafetyInset)
++        .frame(maxWidth: .infinity, alignment: .leading)
+     }
+ 
+     @ViewBuilder
+     private var rotatingUsageView: some View {
+         let modules = enabledUsageModules
+-        if !modules.isEmpty {
++        if settings.isEnabled(.schedule), let item = schedule.snapshot.occurrences.first(where: { !$0.isDeleted && $0.status == .running }) {
++            TimelineView(.periodic(from: .now, by: 1)) { context in
++                let seconds = max(0, Int(item.expectedEnd.timeIntervalSince(context.date)))
++                HStack(spacing: 7) {
++                    Image(systemName: "timer").foregroundStyle(Color.islandMint)
++                    Text(String(format: "%02d:%02d", seconds / 60, seconds % 60)).monospacedDigit()
++                }.font(.system(size: 12, weight: .medium))
++            }
++        } else if !modules.isEmpty {
+             let module = modules[min(rotatingUsageIndex, modules.count - 1)]
+             switch module {
+             case .weeklyRemaining:
+@@ -219,7 +234,8 @@
+ 
+     private var workspaceShell: some View {
+         VStack(spacing: 0) {
+-            HStack(spacing: 6) {
++            HStack(spacing: 3) {
++                workspaceTab(.now, title: "现在", icon: "square.grid.2x2", action: model.showQuickPanel)
+                 if settings.isEnabled(.codexFollowUp) { workspaceTab(.activity, title: "活动", icon: "waveform.path", action: model.showActivityWorkspace) }
+                 if settings.isEnabled(.quickNotes) { workspaceTab(.notes, title: "便签", icon: "note.text", action: { model.showNotesWorkspace() }) }
+                 if settings.isEnabled(.schedule) { workspaceTab(.schedule, title: "日程", icon: "calendar", action: model.showScheduleWorkspace) }
+@@ -245,8 +261,9 @@
+             .padding(.horizontal, 18)
+             .padding(.top, 13)
+             .padding(.bottom, 10)
+-            FocusStatusBar(model: model, schedule: model.schedule)
++            if model.expandedWorkspace != .now { FocusStatusBar(model: model, schedule: model.schedule) }
+             ZStack(alignment: .top) {
++                WorkspaceSurface(isVisible: model.expandedWorkspace == .now && !model.isShowingSettings) { QuickAssistantView(model: model) }
+                 WorkspaceSurface(isVisible: model.expandedWorkspace == .activity && !model.isShowingSettings) { expandedCard }
+                 WorkspaceSurface(isVisible: model.expandedWorkspace == .notes && !model.isShowingSettings) { NotesWorkspaceView(model: model) }
+                 WorkspaceSurface(isVisible: model.expandedWorkspace == .schedule && !model.isShowingSettings) { ScheduleWorkspaceView(model: model) }
+@@ -282,9 +299,9 @@
+         return Button(action: action) {
+             Label(title, systemImage: icon)
+                 .font(.system(size: 13, weight: selected ? .semibold : .medium))
+-                .padding(.horizontal, 12).frame(height: 34)
+-                .foregroundStyle(selected ? Color.islandBlue : Color.white.opacity(0.65))
+-                .background(selected ? Color.islandBlue.opacity(0.13) : Color.clear, in: RoundedRectangle(cornerRadius: 9))
++                .padding(.horizontal, 8).frame(height: 34)
++                .foregroundStyle(selected ? Color.islandMint : Color.white.opacity(0.65))
++                .background(selected ? Color.islandMint.opacity(0.10) : Color.clear, in: RoundedRectangle(cornerRadius: 9))
+         }
+         .buttonStyle(.plain)
+         .accessibilityLabel("打开" + title)
+--- before/UI/IslandWindowController.swift
++++ after/UI/IslandWindowController.swift
+@@ -30,8 +30,8 @@
+ 
+ enum ExpandedIslandLayout {
+     static let panelWidth: CGFloat = 510
+-    static let workspaceHeight: CGFloat = 443
+-    static let windowHeight: CGFloat = 465
++    static let workspaceHeight: CGFloat = 480
++    static let windowHeight: CGFloat = 502
+ }
+ 
+ private final class NotchBarPanel: NSPanel {
+@@ -68,6 +68,7 @@
+     private let leftWingPanel: NotchBarPanel
+     private let rightWingPanel: NotchBarPanel
+     private let expandedPanel: ExpandedIslandPanel
++    private lazy var noteEditorController = NoteEditorWindowController(model: model)
+     private var cancellables: Set<AnyCancellable> = []
+     private var workspaceObserver: NSObjectProtocol?
+ 
+@@ -172,7 +173,7 @@
+ 
+         guard !userHidden,
+               !codexIsFrontmost,
+-              model.isShowingSettings || model.settings.hasEnabledModules,
++              model.isShowingSettings || model.settings.hasEnabledFeatures,
+               let screen = Self.notchScreen
+         else {
+             hideAllPanels()
+@@ -198,6 +199,27 @@
+     }
+ 
+     private func observeState() {
++        model.$isNotesEditorPresented
++            .removeDuplicates()
++            .sink { [weak self] presented in
++                DispatchQueue.main.async {
++                    guard let self else { return }
++                    if presented {
++                        self.expandedPanel.makeFirstResponder(nil)
++                        self.model.notes.flush()
++                        self.noteEditorController.present()
++                    }
++                    else { self.noteEditorController.dismiss() }
++                }
++            }
++            .store(in: &cancellables)
++
++        model.schedule.$snapshot
++            .sink { [weak self] _ in
++                DispatchQueue.main.async { self?.updateVisibility() }
++            }
++            .store(in: &cancellables)
++
+         model.$isExpanded
+             .removeDuplicates()
+             .sink { [weak self] expanded in
+@@ -211,7 +233,18 @@
+             .store(in: &cancellables)
+ 
+         model.settings.$enabledModules
+-            .sink { [weak self] _ in self?.updateVisibility() }
++            .sink { [weak self] _ in
++                DispatchQueue.main.async { self?.updateVisibility() }
++            }
++            .store(in: &cancellables)
++
++        model.settings.$enabledFeatures
++            .sink { [weak self] modules in
++                DispatchQueue.main.async { self?.updateVisibility() }
++                if !modules.contains(.quickNotes) {
++                    DispatchQueue.main.async { self?.model.isNotesEditorPresented = false }
++                }
++            }
+             .store(in: &cancellables)
+ 
+         model.settings.$collapsedLayoutMode
+@@ -257,7 +290,7 @@
+     private func expandedStateChanged(_ expanded: Bool) {
+         guard !userHidden,
+               !codexIsFrontmost,
+-              model.isShowingSettings || model.settings.hasEnabledModules,
++              model.isShowingSettings || model.settings.hasEnabledFeatures,
+               let screen = Self.notchScreen
+         else {
+             if !expanded { expandedPanel.orderOut(nil) }
+@@ -312,13 +345,13 @@
+     private func showWingPanels(on screen: NSScreen) {
+         positionWingPanels(on: screen)
+         backdropPanel.orderFrontRegardless()
+-        if model.settings.isEnabled(.taskStatus) {
++        if model.settings.hasEnabledFeatures {
+             leftWingPanel.orderFrontRegardless()
+         } else {
+             leftWingPanel.orderOut(nil)
+         }
+ 
+-        let hasUsage = model.settings.isEnabled(.weeklyRemaining) || model.settings.isEnabled(.todayTokens)
++        let hasUsage = model.settings.isEnabled(.weeklyRemaining) || model.settings.isEnabled(.todayTokens) || model.schedule.snapshot.occurrences.contains { !$0.isDeleted && $0.status == .running }
+         if hasUsage {
+             rightWingPanel.orderFrontRegardless()
+         } else {
+@@ -339,8 +372,8 @@
+         let notchRightEdge = notchEdges.right
+         let y = screen.frame.maxY - notchBarHeight
+ 
+-        let hasLeft = model.settings.isEnabled(.taskStatus)
+-        let hasRight = model.settings.isEnabled(.weeklyRemaining) || model.settings.isEnabled(.todayTokens)
++        let hasLeft = model.settings.hasEnabledFeatures
++        let hasRight = model.settings.isEnabled(.weeklyRemaining) || model.settings.isEnabled(.todayTokens) || model.schedule.snapshot.occurrences.contains { !$0.isDeleted && $0.status == .running }
+         let backdropLeft = hasLeft ? notchLeftEdge - leftWidth : notchLeftEdge
+         let backdropRight = hasRight ? notchRightEdge + rightWidth : notchRightEdge
+         backdropPanel.setFrame(NSRect(
+@@ -379,7 +412,7 @@
+ 
+         if animated {
+             NSAnimationContext.runAnimationGroup { context in
+-                context.duration = 0.28
++                context.duration = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? 0 : 0.24
+                 context.timingFunction = CAMediaTimingFunction(controlPoints: 0.22, 0.72, 0.18, 1)
+                 expandedPanel.animator().alphaValue = 1
+                 expandedPanel.animator().setFrame(target, display: true)
+--- before/UI/NotesWorkspaceView.swift
++++ after/UI/NotesWorkspaceView.swift
+@@ -3,6 +3,8 @@
+ struct NotesWorkspaceView: View {
+     @ObservedObject var model: ApplicationModel
+     @ObservedObject var notes: NoteLibraryModel
++    let spacious: Bool
++    @State private var searchText = ""
+     @FocusState private var titleFocused: Bool
+     @State private var editorCommand: RichTextCommand?
+     @State private var editorFocusRequestID: UUID?
+@@ -15,20 +17,23 @@
+     private let todoImportStore = CodexTodoImportStore()
+ #endif
+ 
+-    init(model: ApplicationModel) {
++    init(model: ApplicationModel, spacious: Bool = false) {
++        self.spacious = spacious
+         self.model = model
+         _notes = ObservedObject(wrappedValue: model.notes)
+     }
+ 
+     var body: some View {
+-        VStack(alignment: .leading, spacing: 0) {
+-            noteTabs
+-            Divider().overlay(Color.white.opacity(0.1))
+-
+-            if let note = notes.selectedNote {
+-                editor(for: note)
+-                    .id(note.id)
+-                    .transition(.opacity.combined(with: .move(edge: .trailing)))
++        HStack(spacing: 0) {
++            if spacious { noteSidebar }
++            VStack(alignment: .leading, spacing: 0) {
++                if !spacious {
++                    noteTabs
++                    Divider().overlay(Color.white.opacity(0.1))
++                }
++                if let note = notes.selectedNote {
++                    editor(for: note).id(note.id)
++                }
+             }
+         }
+         .frame(maxWidth: .infinity, maxHeight: .infinity)
+@@ -36,6 +41,9 @@
+ 
+         .environment(\.colorScheme, .dark)
+         .animation(.easeOut(duration: 0.16), value: notes.selectedNoteID)
++        .onReceive(NotificationCenter.default.publisher(for: .focusExpandedNoteBody)) { _ in
++            if spacious { editorFocusRequestID = UUID() }
++        }
+         .onReceive(NotificationCenter.default.publisher(for: .focusNewNoteTitle)) { _ in
+             titleFocused = true
+         }
+@@ -52,6 +60,38 @@
+ #endif
+     }
+ 
++    private var noteSidebar: some View {
++        VStack(alignment: .leading, spacing: 12) {
++            HStack {
++                Text("便签").font(.system(size: 13, weight: .semibold))
++                Spacer()
++                Button(action: createNote) { Image(systemName: "plus") }
++                    .buttonStyle(.plain).help("新建便签").accessibilityLabel("新建便签")
++            }
++            TextField("查找便签", text: $searchText).textFieldStyle(.roundedBorder)
++            ScrollView {
++                LazyVStack(alignment: .leading, spacing: 5) {
++                    ForEach(notes.notes.filter { searchText.isEmpty || $0.displayTitle.localizedCaseInsensitiveContains(searchText) }) { note in
++                        Button {
++                            NSApp.keyWindow?.makeFirstResponder(nil)
++                            notes.select(note)
++                        } label: {
++                            VStack(alignment: .leading, spacing: 5) {
++                                Text(note.displayTitle).font(.system(size: 12, weight: .medium)).lineLimit(2)
++                                Text(note.updatedAt, style: .date).font(.system(size: 10)).foregroundStyle(.white.opacity(0.4))
++                            }
++                            .frame(maxWidth: .infinity, alignment: .leading).padding(11)
++                            .background(notes.selectedNoteID == note.id ? Color.islandMint.opacity(0.1) : .clear, in: RoundedRectangle(cornerRadius: 9))
++                        }.buttonStyle(.plain)
++                    }
++                }
++            }
++        }
++        .padding(15).frame(width: 190)
++        .frame(maxHeight: .infinity)
++        .background(Color.white.opacity(0.02))
++    }
++
+     private var noteTabs: some View {
+         HStack(spacing: 9) {
+             ScrollView(.horizontal, showsIndicators: false) {
+@@ -80,6 +120,7 @@
+     private func noteTab(_ note: NoteDocument) -> some View {
+         let selected = notes.selectedNoteID == note.id
+         return Button {
++            NSApp.keyWindow?.makeFirstResponder(nil)
+             withAnimation(.easeOut(duration: 0.16)) { notes.select(note) }
+         } label: {
+             HStack(spacing: 7) {
+@@ -138,11 +179,11 @@
+ 
+     private var footer: some View {
+         HStack(spacing: 8) {
+-            Text("⌘⇧Space")
++            if spacious { Text("⌘⇧Space")
+                 .font(.system(size: 11.5, weight: .medium))
+                 .foregroundStyle(.white.opacity(0.34))
+                 .frame(width: 72, alignment: .leading)
+-                .help(AppLocalization.text("快速召唤"))
++                .help(AppLocalization.text("快速召唤")) }
+ 
+             HStack(spacing: 3) {
+                 formatTextButton("H", label: "标题", command: .heading)
+@@ -157,6 +198,10 @@
+             .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(Color.white.opacity(0.11), lineWidth: 1))
+ 
+             Spacer(minLength: 4)
++            if !spacious {
++                Button(action: model.expandNoteEditor) { Image(systemName: "arrow.up.left.and.arrow.down.right").frame(width: 27, height: 31) }
++                    .buttonStyle(FormatToolbarButtonStyle()).help("展开编辑").accessibilityLabel("展开编辑")
++            }
+ #if !HALOFOLD_NO_CODEX_TODO
+             Button(action: discoverTodos) {
+                 Image(systemName: "sparkles").frame(width: 31, height: 31)
+@@ -238,6 +283,7 @@
+ 
+ 
+     private func createNote() {
++        NSApp.keyWindow?.makeFirstResponder(nil)
+         withAnimation(.easeOut(duration: 0.18)) { _ = notes.createNote() }
+         DispatchQueue.main.async { titleFocused = true }
+     }
+@@ -282,6 +328,7 @@
+ }
+ 
+ extension Notification.Name {
++    static let focusExpandedNoteBody = Notification.Name("Halofold.focusExpandedNoteBody")
+     static let focusNewNoteTitle = Notification.Name("Halofold.focusNewNoteTitle")
+ }
+ 
+--- before/UI/RichNoteEditor.swift
++++ after/UI/RichNoteEditor.swift
+@@ -79,7 +79,8 @@
+             context.coordinator.documentID = documentID
+             context.coordinator.lastAppliedData = rtfData
+         } else if context.coordinator.lastAppliedData != rtfData,
+-                  !context.coordinator.isEditing {
++                  !context.coordinator.hasPendingEdit,
++                  (!context.coordinator.isEditing || textView.window?.firstResponder !== textView || textView.window?.isVisible != true) {
+             context.coordinator.isApplyingExternalChange = true
+             let selection = textView.selectedRange()
+             textView.textStorage?.setAttributedString(NoteContent.attributedString(from: rtfData))
+@@ -115,6 +116,7 @@
+         var isApplyingExternalChange = false
+         var isEditing = false
+         private var emitWorkItem: DispatchWorkItem?
++        var hasPendingEdit = false
+ 
+         init(parent: RichNoteEditor) {
+             self.parent = parent
+@@ -134,6 +136,7 @@
+             guard !isApplyingExternalChange,
+                   let textView = notification.object as? NSTextView
+             else { return }
++            hasPendingEdit = true
+             scheduleEmit(textView)
+         }
+ 
+@@ -199,6 +202,8 @@
+         }
+ 
+         private func emit(_ textView: NSTextView) {
++            guard hasPendingEdit else { return }
++            hasPendingEdit = false
+             let data = NoteContent.rtf(from: textView.attributedString())
+             lastAppliedData = data
+             parent.onChange(data)
+--- before/UI/QuickAssistantView.swift
++++ after/UI/QuickAssistantView.swift
+@@ -0,0 +1,171 @@
++import AppKit
++import SwiftUI
++
++/// A stable overview: live information changes inside cards, never their order.
++struct QuickAssistantView: View {
++    @ObservedObject var model: ApplicationModel
++    @ObservedObject var notes: NoteLibraryModel
++    @ObservedObject var schedule: ScheduleLibraryModel
++    @ObservedObject var settings: AppSettings
++
++    init(model: ApplicationModel) {
++        self.model = model
++        notes = model.notes
++        schedule = model.schedule
++        settings = model.settings
++    }
++
++    var body: some View {
++        ScrollView {
++            VStack(spacing: 10) {
++                if settings.isEnabled(.codexFollowUp) { attentionCard }
++                if settings.isEnabled(.schedule) {
++                    HStack(spacing: 10) { focusCard; nextCard }
++                }
++                if settings.isEnabled(.quickNotes) { quickNote }
++            }
++            .padding(.horizontal, 18)
++            .padding(.bottom, 16)
++        }
++        .scrollIndicators(.hidden)
++    }
++
++    private var attentionCard: some View {
++        VStack(alignment: .leading, spacing: 8) {
++            let pending = model.visibleConversations.filter { $0.state == .needsAction }
++            HStack {
++                Label(pending.isEmpty ? "当前活动" : "需要你处理 · \(pending.count) 项", systemImage: pending.isEmpty ? "waveform.path" : "hand.raised")
++                    .font(.system(size: 11, weight: .medium)).foregroundStyle(.white.opacity(0.55))
++                Spacer()
++                Button("全部", action: model.showActivityWorkspace).buttonStyle(.plain).font(.system(size: 11)).foregroundStyle(Color.islandMint)
++            }
++            if let first = pending.first {
++                HStack(spacing: 14) {
++                    VStack(alignment: .leading, spacing: 5) {
++                        Text(first.title).font(.system(size: 14, weight: .medium)).lineLimit(1)
++                        Text(first.actionPrompt ?? "正在等待你的确认").font(.system(size: 11)).foregroundStyle(.white.opacity(0.52)).lineLimit(1)
++                    }
++                    Spacer(minLength: 0)
++                    Button { model.open(first) } label: { Label("处理", systemImage: "arrow.up.right") }
++                        .buttonStyle(AssistantActionStyle())
++                }
++            } else {
++                Text(model.sourceHasWarning ? model.sourceStatusText : (model.runningCount > 0 ? "\(model.runningCount) 项正在进行，无需处理" : "暂时没有需要处理的事"))
++                    .font(.system(size: 13)).foregroundStyle(.white.opacity(0.8)).lineLimit(2)
++                if model.sourceHasWarning {
++                    Button(model.sourceRecoveryTitle, action: model.recoverSource).buttonStyle(.plain).foregroundStyle(Color.islandMint).font(.system(size: 12))
++                }
++            }
++        }
++        .assistantCard()
++    }
++
++    private var focusCard: some View {
++        Button {
++            model.showScheduleWorkspace()
++            model.isShowingFocusDetail = running != nil
++        } label: {
++            VStack(alignment: .leading, spacing: 6) {
++                Label("当前专注", systemImage: "timer").font(.system(size: 11)).foregroundStyle(.white.opacity(0.52))
++                if let item = running {
++                    TimelineView(.periodic(from: .now, by: 1)) { context in
++                        let seconds = max(0, Int(item.expectedEnd.timeIntervalSince(context.date)))
++                        Text(String(format: "%02d:%02d", seconds / 60, seconds % 60))
++                            .font(.system(size: 27, weight: .medium, design: .rounded)).monospacedDigit()
++                    }
++                    Text(item.title).font(.system(size: 11)).foregroundStyle(.white.opacity(0.6)).lineLimit(1)
++                } else {
++                    Text("留一点专注时间").font(.system(size: 14, weight: .medium)).frame(height: 32)
++                    Text("选择日程开始 ↗").font(.system(size: 11)).foregroundStyle(Color.islandMint)
++                }
++            }.frame(maxWidth: .infinity, alignment: .leading).assistantCard()
++        }.buttonStyle(.plain)
++    }
++
++    private var nextCard: some View {
++        Button(action: model.showScheduleWorkspace) {
++            VStack(alignment: .leading, spacing: 6) {
++                Label("下一项安排", systemImage: "calendar").font(.system(size: 11)).foregroundStyle(.white.opacity(0.52))
++                if let item = nextOccurrence {
++                    Text(item.plannedStart, style: .time).font(.system(size: 27, weight: .medium, design: .rounded)).monospacedDigit()
++                    Text(item.title).font(.system(size: 11)).foregroundStyle(.white.opacity(0.6)).lineLimit(1)
++                } else {
++                    Text("今天暂时没有安排").font(.system(size: 14, weight: .medium)).frame(height: 32)
++                    Text("查看日程 ↗").font(.system(size: 11)).foregroundStyle(Color.islandMint)
++                }
++            }.frame(maxWidth: .infinity, alignment: .leading).assistantCard()
++        }.buttonStyle(.plain)
++    }
++
++    private var running: ScheduleOccurrence? {
++        schedule.snapshot.occurrences.first { !$0.isDeleted && $0.status == .running }
++    }
++
++    private var nextOccurrence: ScheduleOccurrence? {
++        schedule.occurrences(on: Date()).filter { [.planned, .awaitingStart, .overdueDecision].contains($0.status) }
++            .sorted { $0.plannedStart < $1.plannedStart }.first
++    }
++
++    private var quickNote: some View {
++        VStack(alignment: .leading, spacing: 8) {
++            HStack {
++                Text("随手记").font(.system(size: 12, weight: .semibold))
++                Spacer()
++                Button {
++                    NSApp.keyWindow?.makeFirstResponder(nil)
++                    notes.createNote()
++                } label: { Image(systemName: "plus") }
++                .buttonStyle(.plain).help("新建便签").accessibilityLabel("新建便签")
++            }
++            if let note = notes.selectedNote {
++                Text(note.displayTitle).font(.system(size: 11)).foregroundStyle(.white.opacity(0.5)).lineLimit(1)
++                RichNoteEditor(documentID: note.id, rtfData: note.bodyRTF, command: nil, focusRequestID: nil,
++                               onChange: { notes.updateBody($0, for: note.id) })
++                    .id(note.id)
++                    .frame(height: 90)
++                    .background(Color.black.opacity(0.18), in: RoundedRectangle(cornerRadius: 9))
++            }
++            HStack {
++                NoteSaveIndicator(state: notes.saveState)
++                Spacer()
++                Button(action: model.expandNoteEditor) { Label("展开编辑", systemImage: "arrow.up.left.and.arrow.down.right") }
++                    .buttonStyle(AssistantActionStyle())
++            }
++        }.assistantCard()
++    }
++}
++
++struct NoteSaveIndicator: View {
++    let state: NoteSaveState
++    var body: some View {
++        Group {
++            switch state {
++            case .saved: Label("已本地保存", systemImage: "checkmark").foregroundStyle(.white.opacity(0.45))
++            case .saving: Label("保存中", systemImage: "ellipsis").foregroundStyle(.white.opacity(0.45))
++            case .failed: Label("保存失败", systemImage: "exclamationmark.triangle").foregroundStyle(Color.islandAmber)
++            }
++        }.font(.system(size: 11))
++    }
++}
++
++struct AssistantActionStyle: ButtonStyle {
++    func makeBody(configuration: Configuration) -> some View {
++        configuration.label.font(.system(size: 11, weight: .medium))
++            .padding(.horizontal, 10).padding(.vertical, 8)
++            .foregroundStyle(Color(red: 0.14, green: 0.23, blue: 0.18))
++            .background(Color.islandMint.opacity(configuration.isPressed ? 0.75 : 1), in: RoundedRectangle(cornerRadius: 8))
++    }
++}
++
++extension Color {
++    static let islandMint = Color(red: 0.73, green: 0.84, blue: 0.77)
++}
++
++private extension View {
++    func assistantCard() -> some View {
++        padding(13)
++            .frame(maxWidth: .infinity, alignment: .leading)
++            .background(LinearGradient(colors: [.white.opacity(0.045), .white.opacity(0.015)], startPoint: .topLeading, endPoint: .bottomTrailing), in: RoundedRectangle(cornerRadius: 15))
++            .overlay(RoundedRectangle(cornerRadius: 15).stroke(.white.opacity(0.07), lineWidth: 1))
++    }
++}
+--- before/UI/NoteEditorWindowController.swift
++++ after/UI/NoteEditorWindowController.swift
+@@ -0,0 +1,71 @@
++import AppKit
++import SwiftUI
++
++@MainActor
++final class NoteEditorWindowController: NSWindowController, NSWindowDelegate {
++    private let model: ApplicationModel
++
++    init(model: ApplicationModel) {
++        self.model = model
++        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 610),
++                              styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
++        window.title = "便签"
++        window.minSize = NSSize(width: 760, height: 470)
++        window.isReleasedWhenClosed = false
++        window.backgroundColor = NSColor(red: 0.065, green: 0.082, blue: 0.09, alpha: 1)
++        window.titlebarAppearsTransparent = true
++        window.appearance = NSAppearance(named: .darkAqua)
++        super.init(window: window)
++        window.delegate = self
++        window.contentView = NSHostingView(rootView: NoteEditorWindowView(model: model))
++        window.center()
++    }
++
++    required init?(coder: NSCoder) { nil }
++
++    func present() {
++        showWindow(nil)
++        window?.makeKeyAndOrderFront(nil)
++        NSApp.activate(ignoringOtherApps: true)
++        NotificationCenter.default.post(name: .focusExpandedNoteBody, object: nil)
++    }
++
++    func dismiss() {
++        window?.makeFirstResponder(nil)
++        model.notes.flush()
++        window?.orderOut(nil)
++    }
++
++    func windowShouldClose(_ sender: NSWindow) -> Bool {
++        model.returnToQuickPanel()
++        return false
++    }
++}
++
++private struct NoteEditorWindowView: View {
++    @ObservedObject var model: ApplicationModel
++
++    var body: some View {
++        VStack(spacing: 0) {
++            HStack {
++                Text("便签").font(.system(size: 13, weight: .medium))
++                Spacer()
++                Button(action: model.returnToQuickPanel) {
++                    Label("收回轻面板", systemImage: "arrow.down.right.and.arrow.up.left")
++                }.buttonStyle(.plain).font(.system(size: 12)).foregroundStyle(Color.islandMint)
++            }.padding(.horizontal, 20).padding(.vertical, 12)
++            Divider().overlay(Color.white.opacity(0.06))
++            NotesWorkspaceView(model: model, spacious: true)
++            if let notice = model.undoNotice {
++                HStack {
++                    Text(notice.message)
++                    Spacer()
++                    Button("撤销", action: model.undoLastDeletion).buttonStyle(.plain).foregroundStyle(Color.islandMint)
++                }.font(.system(size: 12)).padding(12).background(Color.white.opacity(0.06))
++            }
++        }
++        .foregroundStyle(.white.opacity(0.9))
++        .background(Color(red: 0.065, green: 0.082, blue: 0.09))
++        .environment(\.colorScheme, .dark)
++    }
++}

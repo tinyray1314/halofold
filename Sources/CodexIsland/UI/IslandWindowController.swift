@@ -30,8 +30,8 @@ enum IslandWindowLevelPolicy {
 
 enum ExpandedIslandLayout {
     static let panelWidth: CGFloat = 510
-    static let workspaceHeight: CGFloat = 443
-    static let windowHeight: CGFloat = 465
+    static let workspaceHeight: CGFloat = 480
+    static let windowHeight: CGFloat = 502
 }
 
 private final class NotchBarPanel: NSPanel {
@@ -53,6 +53,9 @@ private final class ExpandedIslandPanel: NSPanel {
 }
 
 private final class FullBleedHostingView<Content: View>: NSHostingView<Content> {
+    // The bar remains clickable while another application is active.
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
     override var safeAreaInsets: NSEdgeInsets {
         NSEdgeInsets(top: 0, left: 0, bottom: 0, right: 0)
     }
@@ -65,6 +68,7 @@ final class IslandWindowController: NSWindowController {
     private let leftWingPanel: NotchBarPanel
     private let rightWingPanel: NotchBarPanel
     private let expandedPanel: ExpandedIslandPanel
+    private lazy var noteEditorController = NoteEditorWindowController(model: model)
     private var cancellables: Set<AnyCancellable> = []
     private var workspaceObserver: NSObjectProtocol?
 
@@ -169,7 +173,7 @@ final class IslandWindowController: NSWindowController {
 
         guard !userHidden,
               !codexIsFrontmost,
-              model.isShowingSettings || model.settings.hasEnabledModules,
+              model.isShowingSettings || model.settings.hasEnabledFeatures,
               let screen = Self.notchScreen
         else {
             hideAllPanels()
@@ -177,6 +181,7 @@ final class IslandWindowController: NSWindowController {
         }
 
         showWingPanels(on: screen)
+        if model.isNotesEditorPresented { noteEditorController.showAnchored() }
 
         if model.isExpanded {
             showExpandedPanel(on: screen, animated: false)
@@ -195,6 +200,27 @@ final class IslandWindowController: NSWindowController {
     }
 
     private func observeState() {
+        model.$isNotesEditorPresented
+            .removeDuplicates()
+            .sink { [weak self] presented in
+                DispatchQueue.main.async {
+                    guard let self else { return }
+                    if presented {
+                        self.expandedPanel.makeFirstResponder(nil)
+                        self.model.notes.flush()
+                        self.noteEditorController.present()
+                    }
+                    else { self.noteEditorController.dismiss() }
+                }
+            }
+            .store(in: &cancellables)
+
+        model.schedule.$snapshot
+            .sink { [weak self] _ in
+                DispatchQueue.main.async { self?.updateVisibility() }
+            }
+            .store(in: &cancellables)
+
         model.$isExpanded
             .removeDuplicates()
             .sink { [weak self] expanded in
@@ -208,7 +234,18 @@ final class IslandWindowController: NSWindowController {
             .store(in: &cancellables)
 
         model.settings.$enabledModules
-            .sink { [weak self] _ in self?.updateVisibility() }
+            .sink { [weak self] _ in
+                DispatchQueue.main.async { self?.updateVisibility() }
+            }
+            .store(in: &cancellables)
+
+        model.settings.$enabledFeatures
+            .sink { [weak self] modules in
+                DispatchQueue.main.async { self?.updateVisibility() }
+                if !modules.contains(.quickNotes) {
+                    DispatchQueue.main.async { self?.model.isNotesEditorPresented = false }
+                }
+            }
             .store(in: &cancellables)
 
         model.settings.$collapsedLayoutMode
@@ -254,7 +291,7 @@ final class IslandWindowController: NSWindowController {
     private func expandedStateChanged(_ expanded: Bool) {
         guard !userHidden,
               !codexIsFrontmost,
-              model.isShowingSettings || model.settings.hasEnabledModules,
+              model.isShowingSettings || model.settings.hasEnabledFeatures,
               let screen = Self.notchScreen
         else {
             if !expanded { expandedPanel.orderOut(nil) }
@@ -265,7 +302,7 @@ final class IslandWindowController: NSWindowController {
         if expanded {
             showExpandedPanel(on: screen, animated: true)
         } else {
-            hideExpandedPanel(on: screen, animated: true)
+            hideExpandedPanel()
         }
     }
 
@@ -309,13 +346,13 @@ final class IslandWindowController: NSWindowController {
     private func showWingPanels(on screen: NSScreen) {
         positionWingPanels(on: screen)
         backdropPanel.orderFrontRegardless()
-        if model.settings.isEnabled(.taskStatus) {
+        if model.settings.hasEnabledFeatures {
             leftWingPanel.orderFrontRegardless()
         } else {
             leftWingPanel.orderOut(nil)
         }
 
-        let hasUsage = model.settings.isEnabled(.weeklyRemaining) || model.settings.isEnabled(.todayTokens)
+        let hasUsage = model.settings.isEnabled(.weeklyRemaining) || model.settings.isEnabled(.todayTokens) || model.schedule.snapshot.occurrences.contains { !$0.isDeleted && $0.status == .running }
         if hasUsage {
             rightWingPanel.orderFrontRegardless()
         } else {
@@ -336,8 +373,8 @@ final class IslandWindowController: NSWindowController {
         let notchRightEdge = notchEdges.right
         let y = screen.frame.maxY - notchBarHeight
 
-        let hasLeft = model.settings.isEnabled(.taskStatus)
-        let hasRight = model.settings.isEnabled(.weeklyRemaining) || model.settings.isEnabled(.todayTokens)
+        let hasLeft = model.settings.hasEnabledFeatures
+        let hasRight = model.settings.isEnabled(.weeklyRemaining) || model.settings.isEnabled(.todayTokens) || model.schedule.snapshot.occurrences.contains { !$0.isDeleted && $0.status == .running }
         let backdropLeft = hasLeft ? notchLeftEdge - leftWidth : notchLeftEdge
         let backdropRight = hasRight ? notchRightEdge + rightWidth : notchRightEdge
         backdropPanel.setFrame(NSRect(
@@ -376,7 +413,7 @@ final class IslandWindowController: NSWindowController {
 
         if animated {
             NSAnimationContext.runAnimationGroup { context in
-                context.duration = 0.28
+                context.duration = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? 0 : 0.24
                 context.timingFunction = CAMediaTimingFunction(controlPoints: 0.22, 0.72, 0.18, 1)
                 expandedPanel.animator().alphaValue = 1
                 expandedPanel.animator().setFrame(target, display: true)
@@ -387,27 +424,15 @@ final class IslandWindowController: NSWindowController {
         }
     }
 
-    private func hideExpandedPanel(on screen: NSScreen, animated: Bool) {
-        guard expandedPanel.isVisible else { return }
-        guard animated else {
-            expandedPanel.orderOut(nil)
-            return
-        }
-
-        NSAnimationContext.runAnimationGroup { context in
-            context.duration = 0.2
-            context.timingFunction = CAMediaTimingFunction(name: .easeIn)
-            expandedPanel.animator().alphaValue = 0
-            expandedPanel.animator().setFrame(collapsedAnchorFrame(on: screen), display: true)
-        } completionHandler: { [weak expandedPanel] in
-            DispatchQueue.main.async {
-                expandedPanel?.orderOut(nil)
-                expandedPanel?.alphaValue = 1
-            }
-        }
+    private func hideExpandedPanel() {
+        // Hide synchronously: a delayed animation completion can otherwise
+        // order out a panel that the user has already reopened.
+        expandedPanel.orderOut(nil)
+        expandedPanel.alphaValue = 1
     }
 
     private func hideAllPanels() {
+        if model.isNotesEditorPresented { noteEditorController.dismiss() }
         backdropPanel.orderOut(nil)
         leftWingPanel.orderOut(nil)
         rightWingPanel.orderOut(nil)
@@ -422,16 +447,6 @@ final class IslandWindowController: NSWindowController {
             y: top - height,
             width: expandedPanelWidth,
             height: height
-        )
-    }
-
-    private func collapsedAnchorFrame(on screen: NSScreen) -> NSRect {
-        let top = screen.frame.maxY - notchBarHeight
-        return NSRect(
-            x: screen.frame.midX - expandedPanelWidth / 2,
-            y: top - 1,
-            width: expandedPanelWidth,
-            height: 1
         )
     }
 

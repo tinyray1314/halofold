@@ -4,6 +4,45 @@ import XCTest
 
 @MainActor
 final class NoteLibraryTests: XCTestCase {
+    func testUndoLastNoteRestoresExactRichDocumentAfterDiskSave() throws {
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).appendingPathComponent("notes.json")
+        let store = NotePersistenceStore(fileURL: file)
+        let model = NoteLibraryModel(store: store)
+        let id = try XCTUnwrap(model.selectedNoteID)
+        model.updateTitle("保留格式与身份", for: id)
+        model.updateBody(NoteContent.demoRTF(), for: id)
+        let original = try XCTUnwrap(model.selectedNote)
+        model.flush()
+        let undo = try XCTUnwrap(model.deleteWithUndo(id))
+        model.flush()
+        undo()
+        model.flush()
+        let reloaded = NoteLibraryModel(store: store)
+        XCTAssertEqual(model.notes, [original])
+        let restored = try XCTUnwrap(reloaded.selectedNote)
+        XCTAssertEqual(reloaded.notes.count, 1)
+        XCTAssertEqual(restored.id, original.id)
+        XCTAssertEqual(restored.bodyRTF, original.bodyRTF)
+        XCTAssertEqual(restored.title, original.title)
+        // The existing disk format stores ISO-8601 timestamps to whole seconds.
+        XCTAssertEqual(restored.createdAt.timeIntervalSince1970, original.createdAt.timeIntervalSince1970, accuracy: 1)
+        XCTAssertEqual(restored.updatedAt.timeIntervalSince1970, original.updatedAt.timeIntervalSince1970, accuracy: 1)
+        XCTAssertEqual(reloaded.selectedNoteID, original.id)
+    }
+
+    func testUndoNoteDoesNotDiscardNewWorkInReplacement() throws {
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).appendingPathComponent("notes.json")
+        let model = NoteLibraryModel(store: NotePersistenceStore(fileURL: file))
+        let original = try XCTUnwrap(model.selectedNote)
+        let undo = try XCTUnwrap(model.deleteWithUndo(original.id))
+        let newID = try XCTUnwrap(model.selectedNoteID)
+        model.updateTitle("删除之后的新想法", for: newID)
+        undo()
+        XCTAssertEqual(model.notes.count, 2)
+        XCTAssertTrue(model.notes.contains(original))
+        XCTAssertEqual(model.notes.first(where: { $0.id == newID })?.title, "删除之后的新想法")
+    }
+
     func testNotesRoundTripRichTextAndSelection() throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         let file = directory.appendingPathComponent("notes.json")
@@ -155,6 +194,7 @@ final class NoteLibraryTests: XCTestCase {
     }
 }
 
+#if !HALOFOLD_NO_CODEX_TODO
 final class CodexTodoExtractorTests: XCTestCase {
     func testFindsOnlyReviewableTasksFromUserThreads() throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
@@ -227,3 +267,5 @@ final class CodexTodoExtractorTests: XCTestCase {
         return String(data: data, encoding: .utf8)!
     }
 }
+
+#endif

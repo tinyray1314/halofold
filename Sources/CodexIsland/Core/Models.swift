@@ -128,6 +128,7 @@ enum DisplayModule: String, Codable, CaseIterable, Identifiable, Sendable {
 }
 
 enum ExpandedWorkspace: String, Codable, Sendable {
+    case now
     case notes
     case activity
     case schedule
@@ -155,8 +156,8 @@ enum CollapsedLayoutMode: String, Codable, CaseIterable, Identifiable, Sendable 
 
     var leftWingWidth: Double {
         switch self {
-        case .compact: return 258
-        case .relaxed: return 274
+        case .compact: return 132
+        case .relaxed: return 166
         }
     }
 

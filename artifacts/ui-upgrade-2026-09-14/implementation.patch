@@ -1,0 +1,1380 @@
+--- a/Sources/CodexIsland/UI/ScheduleWorkspaceView.swift
++++ b/Sources/CodexIsland/UI/ScheduleWorkspaceView.swift
+@@ -8,12 +8,13 @@
+     @ObservedObject var model: ApplicationModel
+     @ObservedObject private var schedule: ScheduleLibraryModel
+ 
++    @FocusState private var focusedTitle: Bool
+     @State private var selectedTab: ScheduleTab = .week
+     @State private var isShowingForm = false
+     @State private var editingOccurrenceID: String?
+     @State private var editingScope: ScheduleEditScope = .thisOccurrence
++    @State private var isEditingRepeatedOccurrence = false
+     @State private var isEditingPastDay = false
+-    @State private var isShowingMoreSettings = false
+     @State private var draftTitle = ""
+     /// The day selected in the weekly planner. It must not be derived from the
+     /// time-only picker: macOS may substitute that picker's hidden date with
+@@ -32,7 +33,7 @@
+     @State private var routineDraftInterval = 60
+     @State private var routineDraftTime = Date()
+     @State private var toast: Toast?
+-    @State private var deletedOneTimeOccurrence: ScheduleOccurrence?
++    @State private var pendingSeriesDeletion: ScheduleOccurrence?
+ 
+     private let calendar: Calendar = {
+         var value = Calendar.current
+@@ -49,26 +50,43 @@
+     var body: some View {
+         ZStack {
+             VStack(alignment: .leading, spacing: 0) {
+-                header
+                 segmentedControl
+                 Divider().overlay(Color.white.opacity(0.1))
+ 
+-                ScrollView {
+-                    Group {
+-                        switch selectedTab {
+-                        case .week:
+-                            weekPlan
+-                        case .routine:
+-                            routinePlan
++                ScrollViewReader { proxy in
++                    ScrollView {
++                        Group {
++                            switch selectedTab {
++                            case .week:
++                                weekPlan
++                            case .routine:
++                                routinePlan
++                            }
+                         }
+-                    }
+-                    .padding(.horizontal, 18)
+-                    .padding(.vertical, 15)
+-                }
+-                .scrollIndicators(.visible)
+-            }
+-
+-            if selectedTab == .week, let occurrence = runningOccurrence {
++                        .padding(.horizontal, 18)
++                        .padding(.vertical, 15)
++                    }
++                    .scrollIndicators(.visible)
++                    .onChange(of: isShowingForm) { _, showing in
++                        if showing { revealEditor(proxy) }
++                    }
++                    .onChange(of: editingOccurrenceID) { _, id in
++                        if id != nil { revealEditor(proxy) }
++                    }
++                    .onChange(of: isShowingRoutineEditor) { _, showing in
++                        if showing { revealEditor(proxy) }
++                    }
++                    .onChange(of: editingRoutineID) { _, id in
++                        if id != nil { revealEditor(proxy) }
++                    }
++                }
++            }
++            .disabled(isPresentingStateOverlay)
++            .allowsHitTesting(!isPresentingStateOverlay)
++            .accessibilityElement(children: .contain)
++            .accessibilityHidden(isPresentingStateOverlay)
++
++            if selectedTab == .week, model.isShowingFocusDetail, let occurrence = runningOccurrence {
+                 runningOverlay(for: occurrence)
+             } else if selectedTab == .week, let occurrence = overdueOccurrence {
+                 overdueOverlay(for: occurrence)
+@@ -81,73 +99,35 @@
+                     .transition(.move(edge: .bottom).combined(with: .opacity))
+             }
+         }
+-        .frame(width: ExpandedIslandLayout.panelWidth, height: ExpandedIslandLayout.workspaceHeight)
++        .frame(maxWidth: .infinity, maxHeight: .infinity)
+         .foregroundStyle(.white)
+-        .background(panelBackground)
++
+         .environment(\.colorScheme, .dark)
++        .onChange(of: model.isShowingFocusDetail) { _, showing in
++            if showing { selectedTab = .week }
++        }
+         .animation(.easeOut(duration: 0.16), value: selectedTab)
+         .animation(.easeOut(duration: 0.16), value: isShowingForm)
++        .alert("删除本次及后续重复日程？", isPresented: Binding(
++            get: { pendingSeriesDeletion != nil },
++            set: { if !$0 { pendingSeriesDeletion = nil } }
++        )) {
++            Button("取消", role: .cancel) { pendingSeriesDeletion = nil }
++            Button("删除后续", role: .destructive) {
++                if let item = pendingSeriesDeletion { schedule.delete(item.id, scope: .followingOccurrences) }
++                pendingSeriesDeletion = nil
++            }
++        } message: {
++            if let item = pendingSeriesDeletion {
++                Text("将删除「\(item.title)」从\(item.plannedStart.formatted(date: .abbreviated, time: .omitted))起的重复安排，之前的记录保留。")
++            }
++        }
+         .sheet(isPresented: $isShowingTimeAdjustment) {
+-            timeAdjustmentSheet
++            timeAdjustmentSheet.preferredColorScheme(.dark)
+         }
+     }
+ 
+     // MARK: - Header and navigation
+-
+-    private var header: some View {
+-        HStack(spacing: 10) {
+-            Text("我的日程")
+-                .font(.system(size: 17, weight: .semibold))
+-            Spacer()
+-            if model.settings.isEnabled(.quickNotes) {
+-                Button {
+-                    model.showNotesWorkspace()
+-                } label: {
+-                    Label("便签", systemImage: "note.text")
+-                        .font(.system(size: 13.5, weight: .medium))
+-                        .padding(.horizontal, 12)
+-                        .frame(height: 34)
+-                        .background(Color.white.opacity(0.055), in: Capsule())
+-                        .overlay(Capsule().stroke(Color.white.opacity(0.1), lineWidth: 1))
+-                }
+-                .buttonStyle(.plain)
+-                .accessibilityLabel("打开便签")
+-            }
+-            if model.settings.isEnabled(.codexFollowUp) {
+-                Button {
+-                    model.showActivityWorkspace()
+-                } label: {
+-                    Text("活动")
+-                        .font(.system(size: 13.5, weight: .medium))
+-                        .padding(.horizontal, 12)
+-                        .frame(height: 34)
+-                        .background(Color.white.opacity(0.055), in: Capsule())
+-                        .overlay(Capsule().stroke(Color.white.opacity(0.1), lineWidth: 1))
+-                }
+-                .buttonStyle(.plain)
+-                .accessibilityLabel("打开活动")
+-            }
+-
+-            Menu {
+-                Button("打开设置") { model.showSettings() }
+-            } label: {
+-                Image(systemName: "ellipsis")
+-                    .font(.system(size: 15, weight: .semibold))
+-                    .frame(width: 34, height: 34)
+-                    .background(Color.white.opacity(0.055), in: Circle())
+-                    .overlay(Circle().stroke(Color.white.opacity(0.1), lineWidth: 1))
+-            }
+-            .menuStyle(.borderlessButton)
+-            .menuIndicator(.hidden)
+-            .fixedSize()
+-            .accessibilityLabel("日程菜单")
+-
+-            QuitApplicationButton()
+-        }
+-        .padding(.horizontal, 18)
+-        .padding(.top, 15)
+-        .padding(.bottom, 12)
+-    }
+ 
+     private var segmentedControl: some View {
+         HStack(spacing: 6) {
+@@ -163,6 +143,7 @@
+         let isSelected = selectedTab == tab
+         return Button {
+             withAnimation(.easeOut(duration: 0.16)) { selectedTab = tab }
++            if tab == .routine { model.isShowingFocusDetail = false }
+         } label: {
+             Label(title, systemImage: icon)
+                 .font(.system(size: 13, weight: isSelected ? .semibold : .medium))
+@@ -187,6 +168,16 @@
+ 
+     private var weekPlan: some View {
+         VStack(alignment: .leading, spacing: 0) {
++            HStack {
++                Text(schedule.selectedDate.formatted(.dateTime.year().month().day()))
++                    .font(.system(size: 12, weight: .medium))
++                    .foregroundStyle(.white.opacity(0.65))
++                Spacer()
++                Button("今天") { select(Date()) }
++                    .buttonStyle(.plain).foregroundStyle(Color.islandBlue)
++                    .font(.system(size: 12, weight: .medium))
++            }
++            .padding(.bottom, 9)
+             weekNavigator
+                 .padding(.bottom, 15)
+ 
+@@ -196,7 +187,7 @@
+                 upcomingHeader
+             }
+ 
+-            if isShowingForm {
++            if isShowingForm || editingOccurrenceID != nil {
+                 scheduleForm
+                     .padding(.top, 11)
+                     .padding(.bottom, 5)
+@@ -213,7 +204,7 @@
+             if isPastSelectedDate {
+                 historyActions
+                     .padding(.top, 13)
+-            } else if !isShowingForm {
++            } else if !isShowingForm && editingOccurrenceID == nil {
+                 Button(action: beginAdding) {
+                     Label("添加日程", systemImage: "plus")
+                         .font(.system(size: 13.5, weight: .medium))
+@@ -375,10 +366,6 @@
+             ForEach(dayOccurrences) { occurrence in
+                 VStack(spacing: 0) {
+                     occurrenceRow(occurrence)
+-                    if editingOccurrenceID == occurrence.id {
+-                        scheduleForm
+-                            .padding(.vertical, 10)
+-                    }
+                     if occurrence.id != dayOccurrences.last?.id {
+                         Divider().overlay(Color.white.opacity(0.085)).padding(.leading, 59)
+                     }
+@@ -396,11 +383,11 @@
+                     .font(.system(size: 13.5, weight: .semibold, design: .rounded))
+                     .foregroundStyle(.white.opacity(0.9))
+                 Text("\(occurrence.plannedDurationMinutes + occurrence.extendedMinutes) 分钟 · 至 \(timeText(occurrence.expectedEnd))")
+-                    .font(.system(size: 10.5))
+-                    .foregroundStyle(.white.opacity(0.38))
++                    .font(.system(size: 11.5))
++                    .foregroundStyle(.white.opacity(0.62))
+                     .lineLimit(1)
+             }
+-            .frame(width: 103, alignment: .leading)
++            .frame(width: 115, alignment: .leading)
+ 
+             VStack(alignment: .leading, spacing: 3) {
+                 Text(occurrence.title)
+@@ -491,6 +478,9 @@
+ 
+     private var scheduleForm: some View {
+         VStack(alignment: .leading, spacing: 11) {
++            Text("\(editingOccurrenceID == nil ? "添加日程" : "编辑日程") · \(draftDay.formatted(.dateTime.month().day()))")
++                .font(.system(size: 12, weight: .medium))
++                .foregroundStyle(.white.opacity(0.65))
+             TextField("项目名称", text: $draftTitle, prompt: Text("例如：深度阅读"))
+                 .textFieldStyle(.plain)
+                 .font(.system(size: 14, weight: .medium))
+@@ -500,6 +490,7 @@
+                 .background(Color.black.opacity(0.21), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                 .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).stroke(Color.white.opacity(0.1), lineWidth: 1))
+                 .accessibilityLabel("项目名称")
++                .focused($focusedTitle)
+ 
+             HStack(spacing: 9) {
+                 fieldLabel("开始时间")
+@@ -510,8 +501,12 @@
+                     .accessibilityLabel("开始时间")
+                 Spacer(minLength: 8)
+                 fieldLabel("持续时长")
++                TextField("分钟", value: $draftDuration, format: .number)
++                    .textFieldStyle(.roundedBorder)
++                    .frame(width: 48)
++                    .accessibilityLabel("持续分钟数")
+                 Stepper(value: $draftDuration, in: 5...600, step: 5) {
+-                    Text("\(draftDuration) 分钟")
++                    Text("分钟")
+                         .font(.system(size: 12.5, weight: .medium, design: .rounded))
+                         .foregroundStyle(.white.opacity(0.78))
+                 }
+@@ -519,17 +514,6 @@
+                 .accessibilityLabel("持续时长，\(draftDuration) 分钟")
+             }
+ 
+-            Button {
+-                withAnimation(.easeOut(duration: 0.15)) { isShowingMoreSettings.toggle() }
+-            } label: {
+-                Label("更多设置", systemImage: isShowingMoreSettings ? "chevron.up" : "chevron.down")
+-                    .font(.system(size: 12.5, weight: .medium))
+-                    .foregroundStyle(.white.opacity(0.53))
+-            }
+-            .buttonStyle(.plain)
+-            .accessibilityLabel(isShowingMoreSettings ? "收起更多设置" : "展开更多设置")
+-
+-            if isShowingMoreSettings {
+                 HStack {
+                     Text("重复")
+                         .font(.system(size: 12.5))
+@@ -543,8 +527,12 @@
+                     .pickerStyle(.menu)
+                     .tint(.white.opacity(0.8))
+                     .accessibilityLabel("重复规则")
++                    .disabled(editingOccurrenceID != nil && isEditingRepeatedOccurrence && editingScope == .thisOccurrence)
+                 }
+                 .padding(.horizontal, 2)
++            if editingOccurrenceID != nil && isEditingRepeatedOccurrence && editingScope == .thisOccurrence {
++                Text("正在修改本次安排；要调整重复规则，请在菜单中选择“修改后续”。")
++                    .font(.system(size: 12)).foregroundStyle(.white.opacity(0.65))
+             }
+ 
+             if let conflictCount = conflictCount, conflictCount > 0 {
+@@ -565,6 +553,7 @@
+                     .accessibilityLabel(editingOccurrenceID == nil ? "添加日程" : "保存日程")
+             }
+         }
++        .id("schedule-editor")
+         .padding(12)
+         .background(Color.white.opacity(0.037), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+         .overlay(RoundedRectangle(cornerRadius: 11, style: .continuous).stroke(Color.white.opacity(0.1), lineWidth: 1))
+@@ -590,6 +579,11 @@
+                 .padding(.top, 3)
+                 .padding(.bottom, 11)
+ 
++            if isShowingRoutineEditor {
++                routineEditor
++                    .id("schedule-editor")
++                    .padding(.bottom, 12)
++            }
+             LazyVStack(spacing: 0) {
+                 ForEach(schedule.snapshot.routines) { routine in
+                     routineRow(routine)
+@@ -601,10 +595,6 @@
+             .overlay(alignment: .top) { Divider().overlay(Color.white.opacity(0.1)) }
+             .overlay(alignment: .bottom) { Divider().overlay(Color.white.opacity(0.1)) }
+ 
+-            if isShowingRoutineEditor {
+-                routineEditor
+-                    .padding(.top, 12)
+-            }
+ 
+             Label("专注进行中时，会在结束后合并提醒一次。", systemImage: "speaker.wave.2")
+                 .font(.system(size: 12))
+@@ -644,8 +634,8 @@
+                     Button("编辑") { beginEditingRoutine(routine) }
+                     Divider()
+                     Button("删除", role: .destructive) {
+-                        if schedule.deleteCustomRoutine(routine.id) {
+-                            showToast("已删除例行事项", icon: "trash")
++                        if let restore = schedule.deleteRoutineWithUndo(routine.id) {
++                            model.offerUndo("已删除例行事项", restore: restore)
+                         }
+                     }
+                 } label: {
+@@ -786,6 +776,10 @@
+     private func runningOverlay(for occurrence: ScheduleOccurrence) -> some View {
+         TimelineView(.periodic(from: .now, by: 1)) { context in
+             stateOverlay {
++                Button("返回日程列表") { model.isShowingFocusDetail = false }
++                    .buttonStyle(.plain)
++                    .foregroundStyle(Color.islandBlue)
++                    .padding(.bottom, 4)
+                 Text("进行中")
+                     .font(.system(size: 12, weight: .semibold))
+                     .foregroundStyle(Color.islandBlue)
+@@ -820,7 +814,7 @@
+             .padding(.horizontal, 22)
+             .padding(.vertical, 24)
+             .frame(maxWidth: .infinity, maxHeight: .infinity)
+-            .background(Color(red: 0.045, green: 0.052, blue: 0.058).opacity(0.985))
++            .background(Color(red: 0.045, green: 0.052, blue: 0.058))
+             .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).stroke(Color.white.opacity(0.19), lineWidth: 1))
+             .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+             .transition(.opacity)
+@@ -933,7 +927,10 @@
+     private func select(_ day: Date) {
+         withAnimation(.easeOut(duration: 0.14)) {
+             schedule.selectedDate = calendar.startOfDay(for: day)
+-            cancelForm()
++            if isShowingForm {
++                draftDay = calendar.startOfDay(for: day)
++                draftStart = ScheduleDateTime.combining(day: draftDay, time: draftStart, calendar: calendar)
++            }
+             isEditingPastDay = false
+         }
+     }
+@@ -943,33 +940,41 @@
+         select(moved)
+     }
+ 
++    private func revealEditor(_ proxy: ScrollViewProxy) {
++        DispatchQueue.main.async {
++            withAnimation(.easeOut(duration: 0.16)) { proxy.scrollTo("schedule-editor", anchor: .top) }
++            if selectedTab == .week { focusedTitle = true }
++        }
++    }
++
+     private func beginAdding() {
+         editingOccurrenceID = nil
+         editingScope = .thisOccurrence
++        isEditingRepeatedOccurrence = false
+         draftTitle = ""
+-        draftDay = calendar.startOfDay(for: schedule.selectedDate)
+-        draftStart = date(on: draftDay, hour: 9, minute: 0)
++        draftStart = ScheduleDateTime.suggestedStart(on: schedule.selectedDate, calendar: calendar)
++        draftDay = calendar.startOfDay(for: draftStart)
+         draftDuration = 60
+         draftRepeatRule = .none
+-        isShowingMoreSettings = false
+         withAnimation(.easeOut(duration: 0.16)) { isShowingForm = true }
+     }
+ 
+     private func beginEditing(_ occurrence: ScheduleOccurrence, scope: ScheduleEditScope) {
+         editingOccurrenceID = occurrence.id
+         editingScope = scope
++        isEditingRepeatedOccurrence = occurrence.templateID != nil
+         draftTitle = occurrence.title
+         draftDay = calendar.startOfDay(for: occurrence.plannedStart)
+         draftStart = occurrence.plannedStart
+         draftDuration = occurrence.plannedDurationMinutes
+         draftRepeatRule = occurrence.templateID == nil ? .none : .weekly
+-        isShowingMoreSettings = false
+         withAnimation(.easeOut(duration: 0.16)) { isShowingForm = false }
+     }
+ 
+     private func commitForm() {
+         let title = draftTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+         guard !title.isEmpty else { return }
++        draftDuration = min(600, max(5, draftDuration))
+         let plannedStart = ScheduleDateTime.combining(day: draftDay, time: draftStart, calendar: calendar)
+         if let editingOccurrenceID {
+             _ = schedule.update(
+@@ -977,7 +982,7 @@
+                 title: title,
+                 plannedStart: plannedStart,
+                 durationMinutes: draftDuration,
+-                repeatRule: isShowingMoreSettings ? draftRepeatRule : nil,
++                repeatRule: draftRepeatRule,
+                 scope: editingScope
+             )
+             showToast("已保存修改", icon: "checkmark")
+@@ -986,7 +991,7 @@
+                 title: title,
+                 plannedStart: plannedStart,
+                 durationMinutes: draftDuration,
+-                repeatRule: isShowingMoreSettings ? draftRepeatRule : .none
++                repeatRule: draftRepeatRule
+             )
+             showToast("已添加日程", icon: "checkmark")
+         }
+@@ -997,31 +1002,14 @@
+         isShowingForm = false
+         editingOccurrenceID = nil
+         editingScope = .thisOccurrence
+-        isShowingMoreSettings = false
+     }
+ 
+     private func delete(_ occurrence: ScheduleOccurrence, scope: ScheduleEditScope) {
+-        schedule.delete(occurrence.id, scope: scope)
+-        let message = scope == .followingOccurrences ? "已删除后续日程" : "已删除日程"
+-        if scope == .thisOccurrence, occurrence.templateID == nil {
+-            deletedOneTimeOccurrence = occurrence
+-            showToast(message, icon: "trash", actionTitle: "撤销")
+-        } else {
+-            deletedOneTimeOccurrence = nil
+-            showToast(message, icon: "trash")
+-        }
+-    }
+-
+-    private func restoreDeletedOccurrence() {
+-        guard let occurrence = deletedOneTimeOccurrence else { return }
+-        _ = schedule.add(
+-            title: occurrence.title,
+-            plannedStart: occurrence.plannedStart,
+-            durationMinutes: occurrence.plannedDurationMinutes,
+-            repeatRule: .none
+-        )
+-        deletedOneTimeOccurrence = nil
+-        withAnimation(.easeOut(duration: 0.16)) { toast = nil }
++        if scope == .followingOccurrences {
++            pendingSeriesDeletion = occurrence
++        } else if let restore = schedule.deleteOccurrenceWithUndo(occurrence.id) {
++            model.offerUndo("已删除日程", restore: restore)
++        }
+     }
+ 
+     private func showToast(_ message: String, icon: String, actionTitle: String? = nil) {
+@@ -1029,7 +1017,6 @@
+         withAnimation(.easeOut(duration: 0.16)) { toast = newToast }
+         DispatchQueue.main.asyncAfter(deadline: .now() + 2.4) {
+             guard toast?.id == newToast.id else { return }
+-            deletedOneTimeOccurrence = nil
+             withAnimation(.easeIn(duration: 0.16)) { toast = nil }
+         }
+     }
+@@ -1047,8 +1034,13 @@
+         } ?? dayOccurrences.first { $0.status == .planned }
+     }
+ 
++    private var isPresentingStateOverlay: Bool {
++        selectedTab == .week && ((model.isShowingFocusDetail && runningOccurrence != nil)
++            || overdueOccurrence != nil || awaitingOccurrence != nil)
++    }
++
+     private var runningOccurrence: ScheduleOccurrence? {
+-        schedule.occurrences(on: Date()).first { $0.status == .running }
++        schedule.snapshot.occurrences.first { !$0.isDeleted && $0.status == .running }
+     }
+ 
+     private var overdueOccurrence: ScheduleOccurrence? {
+@@ -1107,7 +1099,7 @@
+         case .overdueDecision: return .islandAmber
+         case .completed: return .islandGreen
+         case .skipped, .cancelled: return .white.opacity(0.45)
+-        case .planned: return .white.opacity(0.48)
++        case .planned: return .white.opacity(0.62)
+         }
+     }
+ 
+@@ -1155,16 +1147,10 @@
+         return calendar.date(from: components) ?? day
+     }
+ 
+-    private var panelBackground: some View {
+-        RoundedRectangle(cornerRadius: 24, style: .continuous)
+-            .fill(Color(red: 0.055, green: 0.065, blue: 0.07).opacity(0.99))
+-            .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).stroke(Color.white.opacity(0.2), lineWidth: 1))
+-    }
+-
+     private func fieldLabel(_ text: String) -> some View {
+         Text(text)
+-            .font(.system(size: 11.5))
+-            .foregroundStyle(.white.opacity(0.48))
++            .font(.system(size: 12))
++            .foregroundStyle(.white.opacity(0.65))
+     }
+ 
+     private func toastView(_ toast: Toast) -> some View {
+@@ -1172,13 +1158,7 @@
+             Label(toast.message, systemImage: toast.icon)
+                 .font(.system(size: 12.5, weight: .medium))
+                 .foregroundStyle(.white.opacity(0.9))
+-            if toast.actionTitle != nil, deletedOneTimeOccurrence != nil {
+-                Button("撤销", action: restoreDeletedOccurrence)
+-                    .font(.system(size: 12.5, weight: .semibold))
+-                    .foregroundStyle(Color.islandBlue)
+-                    .buttonStyle(.plain)
+-                    .accessibilityLabel("撤销删除日程")
+-            }
++
+         }
+         .padding(.horizontal, 12)
+         .frame(height: 32)
+--- a/Sources/CodexIsland/UI/SettingsView.swift
++++ b/Sources/CodexIsland/UI/SettingsView.swift
+@@ -17,7 +17,7 @@
+             _selection = State(initialValue: .voice)
+         } else if ProcessInfo.processInfo.arguments.contains("--general-settings-demo") {
+             _selection = State(initialValue: .general)
+-        } else if !model.hasCodexFolderAccess {
++        } else if model.sourceHasWarning || !model.hasCodexFolderAccess {
+             _selection = State(initialValue: .general)
+         }
+     }
+@@ -75,17 +75,13 @@
+                 }
+                 .buttonStyle(.plain)
+                 .foregroundStyle(.white.opacity(0.72))
+-                .accessibilityLabel("返回任务面板")
++                .accessibilityLabel("返回工作空间")
+ 
+                 Spacer()
+ 
+-                QuitApplicationButton()
+-
+-                Button("完成", action: model.finishSettings)
+-                    .buttonStyle(.plain)
+-                    .font(.system(size: 15, weight: .medium))
+-                    .foregroundStyle(.white.opacity(0.88))
+-                    .frame(width: 52, height: 34, alignment: .trailing)
++                Text("自动保存")
++                    .font(.system(size: 12))
++                    .foregroundStyle(.white.opacity(0.6))
+             }
+         }
+         .padding(.horizontal, 22)
+@@ -410,15 +406,16 @@
+     @ObservedObject var model: ApplicationModel
+     @ObservedObject var settings: AppSettings
+     @Binding var feedback: String?
++    @State private var expandedVoice: AlertKind?
+     @State private var funVoiceTarget: FunVoiceTarget?
+ 
+     var body: some View {
+         ScrollView {
+             VStack(spacing: 12) {
++                voiceAndVolume
+                 actionRequiredBlock
+                 voiceBlock(kind: .completed, title: AppLocalization.text("任务完成"), tint: .islandGreen)
+                 voiceBlock(kind: .paused, title: AppLocalization.text("任务中断"), tint: .islandAmber)
+-                voiceAndVolume
+             }
+             .padding(.horizontal, 22)
+             .padding(.bottom, 16)
+@@ -501,6 +498,20 @@
+                 IslandSwitch(isOn: enabled)
+             }
+ 
++            HStack {
++                Button {
++                    expandedVoice = expandedVoice == kind ? nil : kind
++                } label: {
++                    Label(expandedVoice == kind ? "收起提醒设置" : "编辑提醒内容", systemImage: expandedVoice == kind ? "chevron.up" : "chevron.down")
++                        .font(.system(size: 12, weight: .medium))
++                }
++                .buttonStyle(.plain).foregroundStyle(.white.opacity(0.72))
++                .disabled(model.recordingAlertKind != nil)
++                Spacer()
++                if expandedVoice != kind { previewButton(kind: kind, title: title) }
++            }
++
++            if expandedVoice == kind {
+             sourceSelector(kind: kind, title: title, mode: mode)
+ 
+             if model.recordingAlertKind == kind {
+@@ -522,6 +533,7 @@
+             .buttonStyle(.plain)
+             .foregroundStyle(.white.opacity(0.58))
+             .disabled(model.recordingAlertKind != nil)
++            }
+         }
+         .padding(12)
+         .background(Color.white.opacity(0.055), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+@@ -1210,6 +1222,13 @@
+                 .controlSize(.small)
+                 }
+                 Divider().overlay(Color.white.opacity(0.1)).padding(.horizontal, 18)
++                settingsRow(icon: "hand.raised", title: AppLocalization.text("隐私政策")) {
++                Button("查看", action: showPrivacyPolicy)
++                    .buttonStyle(.bordered)
++                    .controlSize(.small)
++                }
++                Divider().overlay(Color.white.opacity(0.1)).padding(.horizontal, 18)
++                DisclosureGroup("数据与演示") {
+                 infoRow(icon: "folder", title: AppLocalization.text("本地数据"), value: "Application Support")
+                 Divider().overlay(Color.white.opacity(0.1)).padding(.horizontal, 18)
+                 infoRow(
+@@ -1232,11 +1251,9 @@
+                 .controlSize(.small)
+                 }
+                 Divider().overlay(Color.white.opacity(0.1)).padding(.horizontal, 18)
+-                settingsRow(icon: "hand.raised", title: AppLocalization.text("隐私政策")) {
+-                Button("查看", action: showPrivacyPolicy)
+-                    .buttonStyle(.bordered)
+-                    .controlSize(.small)
+-                }
++                }
++                .font(.system(size: 13, weight: .medium))
++                .padding(18)
+             }
+             .background(
+                 RoundedRectangle(cornerRadius: 15, style: .continuous)
+--- a/Sources/CodexIsland/UI/NotesWorkspaceView.swift
++++ b/Sources/CodexIsland/UI/NotesWorkspaceView.swift
+@@ -32,9 +32,9 @@
+                     .transition(.opacity.combined(with: .move(edge: .trailing)))
+             }
+         }
+-        .frame(width: ExpandedIslandLayout.panelWidth, height: ExpandedIslandLayout.workspaceHeight)
++        .frame(maxWidth: .infinity, maxHeight: .infinity)
+         .foregroundStyle(.white)
+-        .background(panelBackground)
++
+         .environment(\.colorScheme, .dark)
+         .animation(.easeOut(duration: 0.16), value: notes.selectedNoteID)
+         .onReceive(NotificationCenter.default.publisher(for: .focusNewNoteTitle)) { _ in
+@@ -55,8 +55,9 @@
+ 
+     private var header: some View {
+         HStack(spacing: 10) {
+-            Text(AppLocalization.text("便签"))
+-                .font(.system(size: 17, weight: .semibold))
++            Text("便签会自动保存")
++                .font(.system(size: 12))
++                .foregroundStyle(.white.opacity(0.6))
+             Spacer()
+ #if !HALOFOLD_NO_CODEX_TODO
+             Button(action: discoverTodos) {
+@@ -79,52 +80,13 @@
+             .help(AppLocalization.text("从最近 Codex 对话中提取待办候选"))
+ #endif
+ 
+-            if model.settings.isEnabled(.schedule) {
+-                Button {
+-                    model.showScheduleWorkspace()
+-                } label: {
+-                    Label(AppLocalization.text("日程"), systemImage: "clock")
+-                        .font(.system(size: 13.5, weight: .medium))
+-                        .padding(.horizontal, 12)
+-                        .frame(height: 34)
+-                        .background(Color.islandBlue.opacity(0.1), in: Capsule())
+-                        .overlay(Capsule().stroke(Color.islandBlue.opacity(0.28), lineWidth: 1))
+-                }
+-                .buttonStyle(.plain)
+-                .foregroundStyle(Color.islandBlue)
+-                .accessibilityLabel(AppLocalization.text("打开我的日程"))
+-            }
+-
+-            if model.settings.isEnabled(.codexFollowUp) {
+-                Button {
+-                    model.showActivityWorkspace()
+-                } label: {
+-                    HStack(spacing: 7) {
+-                        Text(AppLocalization.text("活动"))
+-                        if activityCount > 0 {
+-                            Text("\(activityCount)")
+-                                .font(.system(size: 10.5, weight: .semibold))
+-                                .padding(.horizontal, 7)
+-                                .frame(height: 20)
+-                                .background(Color.white.opacity(0.11), in: Capsule())
+-                        }
+-                    }
+-                    .font(.system(size: 13.5, weight: .medium))
+-                    .padding(.horizontal, 12)
+-                    .frame(height: 34)
+-                    .background(Color.white.opacity(0.055), in: Capsule())
+-                    .overlay(Capsule().stroke(Color.white.opacity(0.1), lineWidth: 1))
+-                }
+-                .buttonStyle(.plain)
+-                .accessibilityLabel(AppLocalization.format("打开活动，共 %lld 项", Int64(activityCount)))
+-            }
+-
+             Menu {
+                 Button(AppLocalization.text("删除当前便签"), role: .destructive) {
+-                    if let id = notes.selectedNoteID { notes.delete(id) }
++                    if let id = notes.selectedNoteID, let restore = notes.deleteWithUndo(id) {
++                        model.offerUndo("已删除便签", restore: restore)
++                    }
+                 }
+-                Divider()
+-                Button(AppLocalization.text("打开设置")) { model.showSettings() }
++
+             } label: {
+                 Image(systemName: "ellipsis")
+                     .font(.system(size: 15, weight: .semibold))
+@@ -137,11 +99,11 @@
+             .fixedSize()
+             .accessibilityLabel(AppLocalization.text("便签菜单"))
+ 
+-            QuitApplicationButton()
++
+         }
+         .padding(.horizontal, 18)
+-        .padding(.top, 15)
+-        .padding(.bottom, 12)
++        .padding(.top, 0)
++        .padding(.bottom, 5)
+     }
+ 
+     private var noteTabs: some View {
+@@ -305,11 +267,7 @@
+         model.runningCount + model.needsActionCount + model.completedCount + model.pausedCount
+     }
+ 
+-    private var panelBackground: some View {
+-        RoundedRectangle(cornerRadius: 24, style: .continuous)
+-            .fill(Color(red: 0.055, green: 0.065, blue: 0.07).opacity(0.99))
+-            .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).stroke(Color.white.opacity(0.2), lineWidth: 1))
+-    }
++
+ 
+     private func createNote() {
+         withAnimation(.easeOut(duration: 0.18)) { _ = notes.createNote() }
+--- a/Sources/CodexIsland/UI/IslandView.swift
++++ b/Sources/CodexIsland/UI/IslandView.swift
+@@ -38,6 +38,8 @@
+     @ObservedObject var model: ApplicationModel
+     @ObservedObject var settings: AppSettings
+     let presentation: IslandPresentation
++    @State private var isConfirmingQuit = false
++    @State private var showsAllRunning = false
+     @State private var rotatingUsageIndex = 0
+     @State private var expandedResultState: ConversationState?
+     private let rotation = Timer.publish(every: 6, on: .main, in: .common).autoconnect()
+@@ -69,28 +71,15 @@
+                         .frame(width: 42, height: 14)
+                         .offset(y: -7)
+                         .padding(.bottom, -7)
+-                    if model.isShowingSettings {
+-                        SettingsView(model: model)
+-                            .transition(.opacity.combined(with: .move(edge: .top)))
+-                    } else {
+-                        ZStack(alignment: .top) {
+-                            if model.expandedWorkspace == .notes {
+-                                NotesWorkspaceView(model: model)
+-                                    .transition(.horizontalFade(offset: -14))
+-                            } else if model.expandedWorkspace == .schedule {
+-                                ScheduleWorkspaceView(model: model)
+-                                    .transition(.horizontalFade(offset: 14))
+-                            } else {
+-                                expandedCard
+-                                    .transition(.horizontalFade(offset: 14))
+-                            }
+-                        }
+-                        .background(
+-                            RoundedRectangle(cornerRadius: 24, style: .continuous)
+-                                .fill(Color(red: 0.055, green: 0.065, blue: 0.07))
+-                        )
+-                        .animation(.easeOut(duration: 0.2), value: model.expandedWorkspace)
+-                    }
++                    ZStack(alignment: .top) {
++                        workspaceShell
++                            .opacity(model.isShowingSettings ? 0 : 1)
++                            .allowsHitTesting(!model.isShowingSettings)
++                            .accessibilityHidden(model.isShowingSettings)
++                        if model.isShowingSettings { SettingsView(model: model) }
++                    }
++                    .onChange(of: model.expandedWorkspace) { NSApp.keyWindow?.makeFirstResponder(nil) }
++                    .onChange(of: model.isShowingSettings) { NSApp.keyWindow?.makeFirstResponder(nil) }
+                     Spacer(minLength: 0)
+                 }
+                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+@@ -175,55 +164,19 @@
+ 
+     private var expandedCard: some View {
+         VStack(alignment: .leading, spacing: 0) {
+-            HStack {
+-                Text("活动")
+-                    .font(.system(size: 15, weight: .medium))
+-                    .foregroundStyle(.white.opacity(0.68))
+-                Spacer()
+-                if settings.isEnabled(.schedule) {
+-                    Button {
+-                        model.showScheduleWorkspace()
+-                    } label: {
+-                        Label("日程", systemImage: "clock")
+-                            .font(.system(size: 12.5, weight: .medium))
+-                            .padding(.horizontal, 10)
+-                            .frame(height: 30)
+-                            .background(Color.islandBlue.opacity(0.1), in: Capsule())
+-                    }
+-                    .buttonStyle(.plain)
+-                    .foregroundStyle(Color.islandBlue)
+-                    .accessibilityLabel("打开我的日程")
+-                }
+-                if settings.isEnabled(.quickNotes) {
+-                    Button {
+-                        model.showNotesWorkspace()
+-                    } label: {
+-                        Label("便签", systemImage: "note.text")
+-                            .font(.system(size: 12.5, weight: .medium))
+-                            .padding(.horizontal, 10)
+-                            .frame(height: 30)
+-                            .background(Color.white.opacity(0.07), in: Capsule())
+-                    }
+-                    .buttonStyle(.plain)
+-                    .foregroundStyle(.white.opacity(0.78))
+-                    .accessibilityLabel("打开便签")
+-                }
+-                Button {
+-                    NotificationCenter.default.post(name: .showCodexIslandSettings, object: nil)
+-                } label: {
+-                    Image(systemName: "gearshape")
+-                        .font(.system(size: 18, weight: .medium))
+-                        .foregroundStyle(.white.opacity(0.7))
+-                        .frame(width: 30, height: 30)
+-                }
+-                .buttonStyle(.plain)
+-                .accessibilityLabel("打开设置")
+-                QuitApplicationButton()
+-            }
+-            .padding(.horizontal, 24)
+-            .padding(.top, 17)
+-            .padding(.bottom, 12)
+-
++            if settings.isEnabled(.taskStatus), let first = needsActionConversations.first {
++                VStack(alignment: .leading, spacing: 3) {
++                    Label("需要你处理 · \(needsActionConversations.count) 项", systemImage: "hand.raised.fill")
++                        .font(.system(size: 12, weight: .semibold))
++                        .foregroundStyle(Color.islandBlue)
++                        .padding(.horizontal, 24)
++                        .padding(.top, 8)
++                    ConversationRow(conversation: first, delegatedCount: model.delegatedChildren(of: first).count) {
++                        model.open(first)
++                    }
++                }
++                .background(Color.islandBlue.opacity(0.07))
++            }
+             ScrollView {
+                 LazyVStack(alignment: .leading, spacing: 0) {
+                     ForEach(settings.moduleOrder.filter(settings.isEnabled)) { module in
+@@ -245,21 +198,97 @@
+                 Circle()
+                     .fill(model.sourceHasWarning ? Color.islandAmber : Color.white.opacity(0.35))
+                     .frame(width: 5, height: 5)
+-                Text(freshnessText)
++                Text(model.sourceStatusText)
+                     .font(.system(size: 12))
+-                    .foregroundStyle(.white.opacity(0.42))
++                    .foregroundStyle(.white.opacity(0.64))
++                if model.sourceHasWarning {
++                    Spacer(minLength: 4)
++                    Button(model.sourceRecoveryTitle, action: model.recoverSource)
++                        .buttonStyle(.plain)
++                        .foregroundStyle(Color.islandBlue)
++                        .fixedSize()
++                }
+             }
+             .padding(.horizontal, 24)
+             .padding(.top, 13)
+             .padding(.bottom, 18)
+         }
++        .frame(maxWidth: .infinity, maxHeight: .infinity)
++        .foregroundStyle(.white)
++    }
++
++    private var workspaceShell: some View {
++        VStack(spacing: 0) {
++            HStack(spacing: 6) {
++                if settings.isEnabled(.codexFollowUp) { workspaceTab(.activity, title: "活动", icon: "waveform.path", action: model.showActivityWorkspace) }
++                if settings.isEnabled(.quickNotes) { workspaceTab(.notes, title: "便签", icon: "note.text", action: { model.showNotesWorkspace() }) }
++                if settings.isEnabled(.schedule) { workspaceTab(.schedule, title: "日程", icon: "calendar", action: model.showScheduleWorkspace) }
++                Spacer(minLength: 4)
++                Button(action: model.showSettings) {
++                    Image(systemName: "gearshape").frame(width: 32, height: 34)
++                }
++                .buttonStyle(.plain)
++                .accessibilityLabel("打开设置")
++                Button(action: model.toggleExpanded) {
++                    Image(systemName: "chevron.up").frame(width: 28, height: 34)
++                }
++                .buttonStyle(.plain)
++                .accessibilityLabel("收起面板")
++                Menu {
++                    Button("退出 Halofold…") { isConfirmingQuit = true }
++                } label: { Image(systemName: "ellipsis").frame(width: 24, height: 34) }
++                .menuStyle(.borderlessButton)
++                .menuIndicator(.hidden)
++                .fixedSize()
++                .accessibilityLabel("应用菜单")
++            }
++            .padding(.horizontal, 18)
++            .padding(.top, 13)
++            .padding(.bottom, 10)
++            FocusStatusBar(model: model, schedule: model.schedule)
++            ZStack(alignment: .top) {
++                WorkspaceSurface(isVisible: model.expandedWorkspace == .activity && !model.isShowingSettings) { expandedCard }
++                WorkspaceSurface(isVisible: model.expandedWorkspace == .notes && !model.isShowingSettings) { NotesWorkspaceView(model: model) }
++                WorkspaceSurface(isVisible: model.expandedWorkspace == .schedule && !model.isShowingSettings) { ScheduleWorkspaceView(model: model) }
++            }
++            if let notice = model.undoNotice {
++                HStack {
++                    Text(notice.message).lineLimit(1)
++                    Spacer()
++                    Button("撤销", action: model.undoLastDeletion)
++                        .buttonStyle(.plain).foregroundStyle(Color.islandBlue)
++                }
++                .font(.system(size: 13, weight: .medium))
++                .padding(12)
++                .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
++                .padding(.horizontal, 18).padding(.bottom, 12)
++            }
++        }
+         .frame(width: ExpandedIslandLayout.panelWidth, height: ExpandedIslandLayout.workspaceHeight)
+-        .foregroundStyle(.white)
+-        .background(
+-            RoundedRectangle(cornerRadius: 24, style: .continuous)
+-                .fill(Color(red: 0.055, green: 0.065, blue: 0.07).opacity(0.96))
+-                .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).stroke(Color.white.opacity(0.2), lineWidth: 1))
+-        )
++        .foregroundStyle(.white.opacity(0.9))
++        .background(Color(red: 0.055, green: 0.065, blue: 0.07), in: RoundedRectangle(cornerRadius: 24))
++        .overlay(RoundedRectangle(cornerRadius: 24).stroke(Color.white.opacity(0.16), lineWidth: 1))
++        .clipShape(RoundedRectangle(cornerRadius: 24))
++        .environment(\.colorScheme, .dark)
++        .preferredColorScheme(.dark)
++        .alert("退出 Halofold？", isPresented: $isConfirmingQuit) {
++            Button("取消", role: .cancel) {}
++            Button("退出", role: .destructive) { NSApp.terminate(nil) }
++        } message: { Text("退出后将停止任务监测和提醒。") }
++    }
++
++    private func workspaceTab(_ workspace: ExpandedWorkspace, title: String, icon: String, action: @escaping () -> Void) -> some View {
++        let selected = model.expandedWorkspace == workspace
++        return Button(action: action) {
++            Label(title, systemImage: icon)
++                .font(.system(size: 13, weight: selected ? .semibold : .medium))
++                .padding(.horizontal, 12).frame(height: 34)
++                .foregroundStyle(selected ? Color.islandBlue : Color.white.opacity(0.65))
++                .background(selected ? Color.islandBlue.opacity(0.13) : Color.clear, in: RoundedRectangle(cornerRadius: 9))
++        }
++        .buttonStyle(.plain)
++        .accessibilityLabel("打开" + title)
++        .accessibilityAddTraits(selected ? .isSelected : [])
+     }
+ 
+     private var taskList: some View {
+@@ -277,7 +306,7 @@
+             } else {
+                 if !runningConversations.isEmpty {
+                     LazyVStack(spacing: 0) {
+-                        ForEach(runningConversations) { conversation in
++                        ForEach(showsAllRunning ? runningConversations : Array(runningConversations.prefix(3))) { conversation in
+                             ConversationRow(conversation: conversation, delegatedCount: model.delegatedChildren(of: conversation).count) {
+                                 model.open(conversation)
+                             }
+@@ -287,7 +316,14 @@
+                         }
+                     }
+                 }
+-                if !needsActionConversations.isEmpty {
++                if runningConversations.count > 3 {
++                    Button(showsAllRunning ? "收起运行中的任务" : "显示全部 \(runningConversations.count) 项运行任务") { showsAllRunning.toggle() }
++                        .buttonStyle(.plain)
++                        .font(.system(size: 12, weight: .medium))
++                        .foregroundStyle(Color.islandBlue)
++                        .padding(12)
++                }
++                if needsActionConversations.count > 1 {
+                     Divider().overlay(Color.white.opacity(0.11)).padding(.horizontal, 24)
+                     resultDisclosure(state: .needsAction, conversations: needsActionConversations)
+                 }
+@@ -503,12 +539,6 @@
+     private var weeklyResetText: String {
+         guard let reset = model.usage.weeklyResetAt else { return AppLocalization.text("重置时间暂不可用") }
+         return AppLocalization.format("%@重置", reset.formatted(.dateTime.month(.abbreviated).day()))
+-    }
+-
+-    private var freshnessText: String {
+-        guard let date = model.usage.updatedAt else { return model.sourceMessage }
+-        let source = AppLocalization.text(model.usage.source == .official ? "官方周用量" : "官方用量 · 本机同步")
+-        return AppLocalization.format("更新于 %@ · %@", date.formatted(date: .omitted, time: .shortened), source)
+     }
+ 
+     private func tokenText(_ value: Int) -> String {
+@@ -664,3 +694,65 @@
+ extension Notification.Name {
+     static let showCodexIslandSettings = Notification.Name("showCodexIslandSettings")
+ }
++
++@MainActor
++private struct FocusStatusBar: View {
++    @ObservedObject var model: ApplicationModel
++    @ObservedObject var schedule: ScheduleLibraryModel
++
++    var body: some View {
++        if let item = schedule.snapshot.occurrences.first(where: { !$0.isDeleted && $0.status == .running }) {
++            TimelineView(.periodic(from: .now, by: 1)) { context in
++                Button {
++                    model.showScheduleWorkspace()
++                    model.isShowingFocusDetail = true
++                } label: {
++                    HStack(spacing: 8) {
++                        Image(systemName: "timer")
++                        Text(item.title).lineLimit(1)
++                        Spacer()
++                        let seconds = max(0, Int(item.expectedEnd.timeIntervalSince(context.date)))
++                        Text(String(format: "%02d:%02d", seconds / 60, seconds % 60)).monospacedDigit()
++                        Image(systemName: "chevron.right").font(.system(size: 10, weight: .semibold))
++                    }
++                    .font(.system(size: 12.5, weight: .medium))
++                    .foregroundStyle(Color.islandBlue)
++                    .padding(.horizontal, 12).padding(.vertical, 9)
++                    .background(Color.islandBlue.opacity(0.09), in: RoundedRectangle(cornerRadius: 9))
++                }
++                .buttonStyle(.plain)
++                .accessibilityLabel("查看专注详情：" + item.title)
++                .accessibilityValue("剩余 \(max(0, Int(item.expectedEnd.timeIntervalSince(context.date))) / 60) 分钟")
++            }
++            .padding(.horizontal, 18).padding(.bottom, 10)
++        }
++    }
++}
++
++/// Keep the native hosting view alive while hiding it from both keyboard focus
++/// and accessibility. Opacity alone leaves AppKit text editors in the AX tree.
++private struct WorkspaceSurface<Content: View>: NSViewRepresentable {
++    let isVisible: Bool
++    @ViewBuilder var content: () -> Content
++
++    func makeNSView(context: Context) -> NSView {
++        let container = NSView()
++        let host = NSHostingView(rootView: content())
++        host.translatesAutoresizingMaskIntoConstraints = false
++        container.addSubview(host)
++        NSLayoutConstraint.activate([
++            host.leadingAnchor.constraint(equalTo: container.leadingAnchor),
++            host.trailingAnchor.constraint(equalTo: container.trailingAnchor),
++            host.topAnchor.constraint(equalTo: container.topAnchor),
++            host.bottomAnchor.constraint(equalTo: container.bottomAnchor)
++        ])
++        return container
++    }
++
++    func updateNSView(_ view: NSView, context: Context) {
++        guard let host = view.subviews.first as? NSHostingView<Content> else { return }
++        host.rootView = content()
++        view.isHidden = !isVisible
++        view.setAccessibilityHidden(!isVisible)
++    }
++}
+--- a/Sources/CodexIsland/Core/NoteLibraryModel.swift
++++ b/Sources/CodexIsland/Core/NoteLibraryModel.swift
+@@ -110,6 +110,27 @@
+         scheduleSave()
+     }
+ 
++    /// Restore the original document, including its ID and formatted content.
++    func deleteWithUndo(_ id: UUID) -> (() -> Void)? {
++        guard let index = notes.firstIndex(where: { $0.id == id }) else { return nil }
++        let deleted = notes[index]
++        let wasLast = notes.count == 1
++        delete(id)
++        let replacement = wasLast ? notes.first : nil
++        return { [weak self] in
++            guard let self, !self.notes.contains(where: { $0.id == deleted.id }) else { return }
++            // Keep a replacement note if the user has already edited it.
++            if let replacement, let replacementIndex = self.notes.firstIndex(of: replacement) {
++                self.notes.remove(at: replacementIndex)
++                self.removedNoteIDs.insert(replacement.id)
++            }
++            self.removedNoteIDs.remove(deleted.id)
++            self.notes.insert(deleted, at: min(index, self.notes.count))
++            self.selectedNoteID = deleted.id
++            self.scheduleSave()
++        }
++    }
++
+     func flush() {
+         guard hasUnsavedChanges else { return }
+         saveWorkItem?.cancel()
+--- a/Sources/CodexIsland/Core/ScheduleLibraryModel.swift
++++ b/Sources/CodexIsland/Core/ScheduleLibraryModel.swift
+@@ -184,6 +184,31 @@
+         tombstone.updatedAt = now
+         upsert(tombstone)
+         markChanged()
++    }
++
++    /// Undo only the deleted occurrence; do not roll back other plans or timer updates.
++    func deleteOccurrenceWithUndo(_ id: String) -> (() -> Void)? {
++        guard let occurrence = resolvedOccurrence(id: id) else { return nil }
++        let original = snapshot.occurrences.first { $0.id == id }
++        delete(id)
++        return { [weak self] in
++            guard let self else { return }
++            self.snapshot.occurrences.removeAll { $0.id == id }
++            if let original { self.snapshot.occurrences.append(original) }
++            else if occurrence.templateID == nil { self.snapshot.occurrences.append(occurrence) }
++            self.markChanged()
++        }
++    }
++
++    func deleteRoutineWithUndo(_ id: UUID) -> (() -> Void)? {
++        guard let index = snapshot.routines.firstIndex(where: { $0.id == id && $0.kind == .custom }) else { return nil }
++        let routine = snapshot.routines[index]
++        guard deleteCustomRoutine(id) else { return nil }
++        return { [weak self] in
++            guard let self, !self.snapshot.routines.contains(where: { $0.id == id }) else { return }
++            self.snapshot.routines.insert(routine, at: min(index, self.snapshot.routines.count))
++            self.markChanged()
++        }
+     }
+ 
+     public func markAwaitingStart(_ occurrenceID: String, now: Date = Date()) {
+--- a/Sources/CodexIsland/Core/ScheduleModels.swift
++++ b/Sources/CodexIsland/Core/ScheduleModels.swift
+@@ -5,6 +5,17 @@
+ /// replace the hidden date component with today, so callers must recombine the
+ /// two values before saving or validating a schedule.
+ public enum ScheduleDateTime {
++    /// Today starts at the next five-minute boundary; other selected days start
++    /// at 09:00. Near midnight the suggested date advances with the time.
++    public static func suggestedStart(on day: Date, now: Date = Date(), calendar: Calendar = .current) -> Date {
++        if calendar.isDate(day, inSameDayAs: now) {
++            let minute = calendar.dateInterval(of: .minute, for: now)?.start ?? now
++            let step = 5 - calendar.component(.minute, from: now) % 5
++            return calendar.date(byAdding: .minute, value: step, to: minute) ?? now
++        }
++        return calendar.date(bySettingHour: 9, minute: 0, second: 0, of: day) ?? day
++    }
++
+     public static func combining(day: Date, time: Date, calendar: Calendar = .current) -> Date {
+         var components = calendar.dateComponents([.year, .month, .day], from: day)
+         let timeComponents = calendar.dateComponents([.hour, .minute, .second], from: time)
+--- a/Sources/CodexIsland/Core/ApplicationModel.swift
++++ b/Sources/CodexIsland/Core/ApplicationModel.swift
+@@ -23,6 +23,50 @@
+     @Published var isShowingSettings = false
+     @Published var expandedWorkspace: ExpandedWorkspace = .activity {
+         didSet { UserDefaults.standard.set(expandedWorkspace.rawValue, forKey: "expandedWorkspace.v1") }
++    }
++
++    struct UndoNotice: Identifiable {
++        let id = UUID()
++        let message: String
++        let restore: () -> Void
++    }
++    @Published private(set) var undoNotice: UndoNotice?
++    private var undoDismissWorkItem: DispatchWorkItem?
++    @Published var isShowingFocusDetail = false
++
++    func offerUndo(_ message: String, restore: @escaping () -> Void) {
++        undoDismissWorkItem?.cancel()
++        let notice = UndoNotice(message: message, restore: restore)
++        undoNotice = notice
++        let item = DispatchWorkItem { [weak self] in
++            guard self?.undoNotice?.id == notice.id else { return }
++            self?.undoNotice = nil
++        }
++        undoDismissWorkItem = item
++        DispatchQueue.main.asyncAfter(deadline: .now() + 8, execute: item)
++    }
++
++    func undoLastDeletion() {
++        guard let notice = undoNotice else { return }
++        undoDismissWorkItem?.cancel()
++        undoNotice = nil
++        notice.restore()
++    }
++
++    var sourceStatusText: String {
++        if sourceHasWarning { return sourceMessage }
++        guard let date = usage.updatedAt else { return sourceMessage }
++        return AppLocalization.format("更新于 %@ · %@", date.formatted(date: .omitted, time: .shortened),
++            AppLocalization.text(usage.source == .official ? "官方周用量" : "官方用量 · 本机同步"))
++    }
++
++    var sourceRecoveryTitle: String {
++        AppLocalization.text(sourceHealth == .usageWarning ? "重试" : "检查设置")
++    }
++
++    func recoverSource() {
++        if sourceHealth == .usageWarning { refreshOfficialUsage() }
++        else { showSettings() }
+     }
+ 
+     let settings: AppSettings
+@@ -301,6 +345,7 @@
+             return
+         }
+         isShowingSettings = false
++        isShowingFocusDetail = false
+         expandedWorkspace = .notes
+         isExpanded = true
+         if createNew { _ = notes.createNote() }
+@@ -312,6 +357,7 @@
+             return
+         }
+         isShowingSettings = false
++        isShowingFocusDetail = false
+         expandedWorkspace = .activity
+         isExpanded = true
+     }
+@@ -322,6 +368,7 @@
+             return
+         }
+         isShowingSettings = false
++        isShowingFocusDetail = false
+         expandedWorkspace = .schedule
+         isExpanded = true
+     }
+--- a/Tests/CodexIslandTests/ScheduleLibraryTests.swift
++++ b/Tests/CodexIslandTests/ScheduleLibraryTests.swift
+@@ -10,6 +10,53 @@
+         super.setUp()
+         calendar = Calendar(identifier: .gregorian)
+         calendar.timeZone = TimeZone(secondsFromGMT: 0)!
++    }
++
++    func testUndoCompletedScheduleRestoresFocusHistoryAndKeepsOtherChanges() throws {
++        let model = makeModel()
++        let start = date(2026, 9, 14, 10, 0)
++        let item = model.add(title: "专注记录", plannedStart: start, durationMinutes: 45)
++        model.start(item.id, at: start)
++        model.extend(item.id, now: start.addingTimeInterval(600))
++        model.complete(item.id, at: start.addingTimeInterval(900))
++        let original = try XCTUnwrap(model.occurrences(on: start).first)
++        let undo = try XCTUnwrap(model.deleteOccurrenceWithUndo(item.id))
++        let added = model.add(title: "后来增加", plannedStart: start.addingTimeInterval(3600), durationMinutes: 30)
++        undo()
++        XCTAssertEqual(model.occurrences(on: start).first(where: { $0.id == item.id }), original)
++        XCTAssertTrue(model.occurrences(on: start).contains(where: { $0.id == added.id }))
++    }
++
++    func testUndoGeneratedAndModifiedRepeatingOccurrences() throws {
++        let model = makeModel()
++        let start = date(2026, 9, 14, 10, 0)
++        let item = model.add(title: "每周复盘", plannedStart: start, durationMinutes: 30, repeatRule: .weekly)
++        let undoGenerated = try XCTUnwrap(model.deleteOccurrenceWithUndo(item.id))
++        XCTAssertTrue(model.occurrences(on: start).isEmpty)
++        undoGenerated()
++        XCTAssertEqual(model.occurrences(on: start).first?.id, item.id)
++        _ = model.update(item.id, title: "本次调整", durationMinutes: 45)
++        let modified = try XCTUnwrap(model.occurrences(on: start).first)
++        let undoModified = try XCTUnwrap(model.deleteOccurrenceWithUndo(item.id))
++        undoModified()
++        XCTAssertEqual(model.occurrences(on: start).first, modified)
++    }
++
++    func testUndoRoutineRestoresIdentityAndTime() throws {
++        let model = makeModel()
++        let item = try XCTUnwrap(model.addCustomRoutine(title: "每日复盘", reminderStyle: .dailyTime, dailyTimeMinutes: 1260))
++        let undo = try XCTUnwrap(model.deleteRoutineWithUndo(item.id))
++        XCTAssertFalse(model.snapshot.routines.contains(where: { $0.id == item.id }))
++        undo()
++        XCTAssertEqual(model.snapshot.routines.first(where: { $0.id == item.id }), item)
++    }
++
++    func testSuggestedStartUsesUpcomingTimeAndRollsMidnightExplicitly() {
++        let now = date(2026, 9, 14, 16, 32)
++        XCTAssertEqual(ScheduleDateTime.suggestedStart(on: now, now: now, calendar: calendar), date(2026, 9, 14, 16, 35))
++        let late = date(2026, 9, 14, 23, 58)
++        XCTAssertEqual(ScheduleDateTime.suggestedStart(on: late, now: late, calendar: calendar), date(2026, 9, 15, 0, 0))
++        XCTAssertEqual(ScheduleDateTime.suggestedStart(on: date(2026, 9, 16, 0, 0), now: now, calendar: calendar), date(2026, 9, 16, 9, 0))
+     }
+ 
+     func testAddUpdateAndDeleteOneTimeOccurrence() throws {
+--- a/Tests/CodexIslandTests/NoteLibraryTests.swift
++++ b/Tests/CodexIslandTests/NoteLibraryTests.swift
+@@ -4,6 +4,45 @@
+ 
+ @MainActor
+ final class NoteLibraryTests: XCTestCase {
++    func testUndoLastNoteRestoresExactRichDocumentAfterDiskSave() throws {
++        let file = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).appendingPathComponent("notes.json")
++        let store = NotePersistenceStore(fileURL: file)
++        let model = NoteLibraryModel(store: store)
++        let id = try XCTUnwrap(model.selectedNoteID)
++        model.updateTitle("保留格式与身份", for: id)
++        model.updateBody(NoteContent.demoRTF(), for: id)
++        let original = try XCTUnwrap(model.selectedNote)
++        model.flush()
++        let undo = try XCTUnwrap(model.deleteWithUndo(id))
++        model.flush()
++        undo()
++        model.flush()
++        let reloaded = NoteLibraryModel(store: store)
++        XCTAssertEqual(model.notes, [original])
++        let restored = try XCTUnwrap(reloaded.selectedNote)
++        XCTAssertEqual(reloaded.notes.count, 1)
++        XCTAssertEqual(restored.id, original.id)
++        XCTAssertEqual(restored.bodyRTF, original.bodyRTF)
++        XCTAssertEqual(restored.title, original.title)
++        // The existing disk format stores ISO-8601 timestamps to whole seconds.
++        XCTAssertEqual(restored.createdAt.timeIntervalSince1970, original.createdAt.timeIntervalSince1970, accuracy: 1)
++        XCTAssertEqual(restored.updatedAt.timeIntervalSince1970, original.updatedAt.timeIntervalSince1970, accuracy: 1)
++        XCTAssertEqual(reloaded.selectedNoteID, original.id)
++    }
++
++    func testUndoNoteDoesNotDiscardNewWorkInReplacement() throws {
++        let file = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).appendingPathComponent("notes.json")
++        let model = NoteLibraryModel(store: NotePersistenceStore(fileURL: file))
++        let original = try XCTUnwrap(model.selectedNote)
++        let undo = try XCTUnwrap(model.deleteWithUndo(original.id))
++        let newID = try XCTUnwrap(model.selectedNoteID)
++        model.updateTitle("删除之后的新想法", for: newID)
++        undo()
++        XCTAssertEqual(model.notes.count, 2)
++        XCTAssertTrue(model.notes.contains(original))
++        XCTAssertEqual(model.notes.first(where: { $0.id == newID })?.title, "删除之后的新想法")
++    }
++
+     func testNotesRoundTripRichTextAndSelection() throws {
+         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+         let file = directory.appendingPathComponent("notes.json")
+@@ -155,6 +194,7 @@
+     }
+ }
+ 
++#if !HALOFOLD_NO_CODEX_TODO
+ final class CodexTodoExtractorTests: XCTestCase {
+     func testFindsOnlyReviewableTasksFromUserThreads() throws {
+         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+@@ -227,3 +267,5 @@
+         return String(data: data, encoding: .utf8)!
+     }
+ }
++
++#endif
