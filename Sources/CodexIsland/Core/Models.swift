@@ -205,6 +205,21 @@ struct ThreadMetadata: Equatable, Sendable {
     let parentThreadID: String?
 }
 
+/// A read-only integrity snapshot for the local data that drives Codex's sidebar.
+/// This is deliberately diagnostic-only: it never proposes or performs a repair.
+struct SessionVisibilityReport: Equatable, Sendable {
+    let scannedAt: Date
+    let activeThreadCount: Int
+    let missingCatalogEntryCount: Int
+    let catalogOnlyEntryCount: Int
+    let missingRolloutCount: Int
+    let protectedHistoricalThreadCount: Int
+
+    var needsAttention: Bool {
+        missingCatalogEntryCount > 0 || catalogOnlyEntryCount > 0 || missingRolloutCount > 0
+    }
+}
+
 struct FileCheckpoint: Codable, Equatable, Sendable {
     var offset: UInt64
     var trailingBytes: Data

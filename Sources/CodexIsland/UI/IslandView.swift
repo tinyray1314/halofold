@@ -209,6 +209,8 @@ struct IslandView: View {
             .scrollIndicators(.visible)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
+            sessionVisibilityPanel
+
             HStack(spacing: 6) {
                 Circle()
                     .fill(model.sourceHasWarning ? Color.islandAmber : Color.white.opacity(0.35))
@@ -355,6 +357,61 @@ struct IslandView: View {
                 }
             }
         }
+    }
+
+    private var sessionVisibilityPanel: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                Image(systemName: "rectangle.3.group")
+                    .foregroundStyle(model.sessionVisibilityReport?.needsAttention == true ? Color.islandAmber : Color.white.opacity(0.68))
+                Text("会话可见性")
+                    .font(.system(size: 12.5, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.82))
+                Spacer(minLength: 6)
+                if model.isScanningSessionVisibility {
+                    ProgressView().controlSize(.small)
+                } else {
+                    Button(model.sessionVisibilityReport == nil ? "检查" : "重新检查", action: model.scanSessionVisibility)
+                        .buttonStyle(.plain)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(Color.islandBlue)
+                }
+            }
+            if let report = model.sessionVisibilityReport {
+                Text(sessionVisibilitySummary(report))
+                    .font(.system(size: 11.5))
+                    .foregroundStyle(report.needsAttention ? Color.islandAmber : .white.opacity(0.58))
+                    .fixedSize(horizontal: false, vertical: true)
+                if report.protectedHistoricalThreadCount > 0 {
+                    Text("发现 \(report.protectedHistoricalThreadCount) 条新版历史结构；自动修复已禁用。")
+                        .font(.system(size: 10.5))
+                        .foregroundStyle(.white.opacity(0.42))
+                }
+            } else if let error = model.sessionVisibilityError {
+                Text(error)
+                    .font(.system(size: 11.5))
+                    .foregroundStyle(Color.islandAmber)
+            } else {
+                Text("只读检查主会话、侧边栏目录和 rollout 文件；不会修改 Codex 数据。")
+                    .font(.system(size: 11.5))
+                    .foregroundStyle(.white.opacity(0.48))
+            }
+        }
+        .padding(.horizontal, 24)
+        .padding(.top, 12)
+        .padding(.bottom, 9)
+        .background(Color.white.opacity(0.035))
+    }
+
+    private func sessionVisibilitySummary(_ report: SessionVisibilityReport) -> String {
+        if !report.needsAttention {
+            return "已检查 \(report.activeThreadCount) 条未归档会话：目录与本地记录一致。"
+        }
+        var issues: [String] = []
+        if report.missingCatalogEntryCount > 0 { issues.append("缺少 \(report.missingCatalogEntryCount) 个侧边栏入口") }
+        if report.catalogOnlyEntryCount > 0 { issues.append("\(report.catalogOnlyEntryCount) 个孤立目录项") }
+        if report.missingRolloutCount > 0 { issues.append("\(report.missingRolloutCount) 个缺失 rollout") }
+        return issues.joined(separator: "；")
     }
 
     private var runningConversations: [ConversationRecord] {

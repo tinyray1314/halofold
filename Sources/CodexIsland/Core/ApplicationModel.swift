@@ -16,6 +16,9 @@ final class ApplicationModel: ObservableObject {
     @Published private(set) var sourceMessage = AppLocalization.text("正在连接 Codex 本地数据…")
     @Published private var sourceHealth: SourceHealth = .normal
     @Published private(set) var hasCodexFolderAccess = CodexDataAccess.shared.codexDirectory != nil
+    @Published private(set) var sessionVisibilityReport: SessionVisibilityReport?
+    @Published private(set) var sessionVisibilityError: String?
+    @Published private(set) var isScanningSessionVisibility = false
     @Published private(set) var recordingAlertKind: AlertKind?
     @Published private(set) var isRecordingVoiceDraft = false
     @Published private(set) var isPresentingSystemPermissionPrompt = false
@@ -76,6 +79,7 @@ final class ApplicationModel: ObservableObject {
     private let persistence: PersistenceStore
     private let eventSource: CodexEventSource
     private let usageClient: CodexUsageClient
+    private let sessionVisibilityDiagnostic = SessionVisibilityDiagnostic()
     private let audioNotifier: AudioNotifier
     private let audioDirectory: URL
     private let audioRecorder: LocalAudioRecorder
@@ -392,6 +396,31 @@ final class ApplicationModel: ObservableObject {
         isShowingFocusDetail = false
         expandedWorkspace = .activity
         isExpanded = true
+    }
+
+    /// Runs only when the user asks. The scanner is read-only and does not attempt a repair.
+    func scanSessionVisibility() {
+        guard let codexDirectory = CodexDataAccess.shared.codexDirectory else {
+            sessionVisibilityError = AppLocalization.text("请先授权访问 .codex 文件夹")
+            return
+        }
+        guard !isScanningSessionVisibility else { return }
+        isScanningSessionVisibility = true
+        sessionVisibilityError = nil
+        let diagnostic = sessionVisibilityDiagnostic
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            let result = Result { try diagnostic.scan(codexDirectory: codexDirectory) }
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.isScanningSessionVisibility = false
+                switch result {
+                case let .success(report):
+                    self.sessionVisibilityReport = report
+                case let .failure(error):
+                    self.sessionVisibilityError = AppLocalization.format("会话检查失败：%@", error.localizedDescription)
+                }
+            }
+        }
     }
 
     func showScheduleWorkspace() {
